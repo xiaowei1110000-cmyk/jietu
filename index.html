@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>群组网站链接匹配检测系统</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     <style>
         :root {
             --primary: #667eea;
@@ -513,6 +512,51 @@
             border-color: var(--primary);
         }
         
+        /* 通知样式 */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 1001;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 400px;
+        }
+        
+        .notification.success {
+            background: var(--success);
+        }
+        
+        .notification.error {
+            background: var(--danger);
+        }
+        
+        .notification.warning {
+            background: var(--warning);
+        }
+        
+        .notification.info {
+            background: var(--info);
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
         /* 加载动画 */
         .loading {
             display: none;
@@ -833,9 +877,6 @@ https://another-domain.com/page?cid=def456
         </div>
     </div>
 
-    <!-- 脚本引入 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
-    
     <script>
         // 全局变量
         let telegramGroups = [];
@@ -854,33 +895,17 @@ https://another-domain.com/page?cid=def456
         
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
-            initToastr();
             loadAllData();
             updateStatsDisplay();
             
-            // 绑定Tab点击事件
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.addEventListener('click', function() {
-                    const tabName = this.getAttribute('onclick').match(/switchTab\('(\w+)'\)/)[1];
-                    switchTab(tabName);
-                });
-            });
+            // 初始化示例数据
+            if (telegramGroups.length === 0) {
+                loadExampleGroups();
+            }
         });
-        
-        // 初始化toastr
-        function initToastr() {
-            toastr.options = {
-                positionClass: "toast-top-right",
-                timeOut: 3000,
-                closeButton: true,
-                progressBar: true
-            };
-        }
         
         // 标签页切换
         function switchTab(tabName) {
-            console.log('切换标签页:', tabName);
-            
             // 隐藏所有标签页
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
@@ -940,7 +965,7 @@ https://another-domain.com/page?cid=def456
                 }
             } catch (e) {
                 console.error('加载数据失败:', e);
-                toastr.error('加载数据失败，请检查浏览器存储');
+                showNotification('加载数据失败，请检查浏览器存储', 'error');
             }
         }
         
@@ -955,9 +980,59 @@ https://another-domain.com/page?cid=def456
             }
         }
         
+        // 加载示例群组
+        function loadExampleGroups() {
+            telegramGroups = [
+                {
+                    id: 'group_1',
+                    name: '营销群组',
+                    telegramId: '@marketing_group',
+                    website: 'https://shop.example.com',
+                    keywords: ['product', 'item', 'buy'],
+                    isActive: true,
+                    detectionCount: 0,
+                    matchCount: 0
+                },
+                {
+                    id: 'group_2',
+                    name: '技术群组',
+                    telegramId: '@tech_group',
+                    website: 'https://api.example.com',
+                    keywords: ['api', 'docs', 'develop'],
+                    isActive: true,
+                    detectionCount: 0,
+                    matchCount: 0
+                }
+            ];
+            updateGroupsDisplay();
+            saveAllData();
+        }
+        
+        // 通知系统
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+        
         // 群组管理功能
         function openAddGroupModal(group = null) {
-            console.log('打开群组模态框', group);
             const modal = document.getElementById('groupModal');
             const title = document.getElementById('modalTitle');
             
@@ -996,17 +1071,25 @@ https://another-domain.com/page?cid=def456
                 .filter(k => k);
             
             if (!name) {
-                toastr.error('请填写群组名称');
+                showNotification('请填写群组名称', 'error');
                 return;
             }
             
             if (!telegramId) {
-                toastr.error('请填写Telegram群组ID');
+                showNotification('请填写Telegram群组ID', 'error');
                 return;
             }
             
             if (!website) {
-                toastr.error('请填写绑定的目标网站');
+                showNotification('请填写绑定的目标网站', 'error');
+                return;
+            }
+            
+            // 验证URL格式
+            try {
+                new URL(website);
+            } catch (e) {
+                showNotification('请输入有效的网站URL', 'error');
                 return;
             }
             
@@ -1025,6 +1108,7 @@ https://another-domain.com/page?cid=def456
                         keywords,
                         updatedAt: new Date().toISOString()
                     };
+                    showNotification('群组更新成功', 'success');
                 }
             } else {
                 // 添加新群组
@@ -1041,12 +1125,12 @@ https://another-domain.com/page?cid=def456
                     matchCount: 0
                 };
                 telegramGroups.push(newGroup);
+                showNotification('群组添加成功', 'success');
             }
             
             updateGroupsDisplay();
             saveAllData();
             closeModal();
-            toastr.success('群组保存成功');
         }
         
         function updateGroupsDisplay() {
@@ -1134,7 +1218,7 @@ https://another-domain.com/page?cid=def456
                 telegramGroups = telegramGroups.filter(g => g.id !== groupId);
                 updateGroupsDisplay();
                 saveAllData();
-                toastr.success('群组已删除');
+                showNotification('群组已删除', 'success');
             }
         }
         
@@ -1144,24 +1228,24 @@ https://another-domain.com/page?cid=def456
                 group.isActive = !group.isActive;
                 updateGroupsDisplay();
                 saveAllData();
-                toastr.success(`群组已${group.isActive ? '激活' : '停用'}`);
+                showNotification(`群组已${group.isActive ? '激活' : '停用'}`, 'success');
             }
         }
         
         // 链接检测功能
         function loadExampleLinks() {
             document.getElementById('batchLinksInput').value = `https://shop.example.com/product?cid=abc123&ref=telegram
-https://store.example.com/item?cid=xyz789&size=large
-https://example.com/product?cid=def456&color=red
-https://another-shop.com/item?cid=ghi789&ref=promo
+https://shop.example.com/item?cid=xyz789&size=large
+https://api.example.com/product?cid=def456&color=red
+https://api.example.com/item?cid=ghi789&ref=promo
 # 系统会自动提取域名并匹配到对应的群组`;
-            toastr.info('示例链接已加载');
+            showNotification('示例链接已加载', 'info');
         }
         
         function analyzeLinks() {
             const input = document.getElementById('batchLinksInput').value.trim();
             if (!input) {
-                toastr.warning('请输入要检测的链接');
+                showNotification('请输入要检测的链接', 'warning');
                 return;
             }
             
@@ -1221,7 +1305,7 @@ https://another-shop.com/item?cid=ghi789&ref=promo
             });
             
             updateQueueDisplay();
-            toastr.success(`解析完成，共 ${detectionQueue.length} 个链接`);
+            showNotification(`解析完成，共 ${detectionQueue.length} 个链接`, 'success');
         }
         
         function extractDomain(url) {
@@ -1274,15 +1358,14 @@ https://another-shop.com/item?cid=ghi789&ref=promo
         
         // 开始检测
         async function startMultiCheck() {
-            console.log('开始检测');
             if (isChecking) {
-                toastr.warning('检测正在进行中');
+                showNotification('检测正在进行中', 'warning');
                 return;
             }
             
             const pendingLinks = detectionQueue.filter(l => l.status === 'pending');
             if (pendingLinks.length === 0) {
-                toastr.warning('没有待检测的链接');
+                showNotification('没有待检测的链接', 'warning');
                 return;
             }
             
@@ -1344,8 +1427,6 @@ https://another-shop.com/item?cid=ghi789&ref=promo
                     updateGroupsDisplay();
                     saveAllData();
                     
-                    console.log('检测完成:', link.url);
-                    
                 } catch (error) {
                     console.error('检测错误:', error);
                     link.status = 'failed';
@@ -1361,16 +1442,16 @@ https://another-shop.com/item?cid=ghi789&ref=promo
             document.getElementById('stopBtn').disabled = true;
             document.getElementById('detectionLoading').classList.remove('active');
             
-            toastr.success('批量检测完成');
+            showNotification('批量检测完成', 'success');
             saveAllData();
         }
         
         async function simulateLinkCheck(link) {
             // 模拟检测延迟
-            await sleep(2000);
+            await sleep(1000);
             
             // 模拟检测结果
-            const isMatch = Math.random() > 0.5;
+            const isMatch = Math.random() > 0.3; // 30%几率匹配
             const redirectUrl = isMatch ? link.expectedUrl : `https://wrong-domain.com/product?cid=${Math.random().toString(36).substr(2)}`;
             
             link.status = isMatch ? 'matched' : 'no_match';
@@ -1383,17 +1464,16 @@ https://another-shop.com/item?cid=ghi789&ref=promo
         
         async function sendScreenshotToTelegram(link) {
             // 模拟发送到Telegram
-            await sleep(1000);
+            await sleep(500);
             console.log(`发送截图到群组: ${link.groupName}, 链接: ${link.url}`);
             return true;
         }
         
         function stopAllChecks() {
-            console.log('停止检测');
             isChecking = false;
             document.getElementById('detectionLoading').classList.remove('active');
             document.getElementById('stopBtn').disabled = true;
-            toastr.info('检测已停止');
+            showNotification('检测已停止', 'info');
         }
         
         function updateProgress(current, total) {
@@ -1547,7 +1627,7 @@ https://another-shop.com/item?cid=ghi789&ref=promo
         function testGroupLink(groupId) {
             const group = telegramGroups.find(g => g.id === groupId);
             if (group) {
-                toastr.info(`测试群组链接: ${group.website}`);
+                showNotification(`正在打开测试链接: ${group.website}`, 'info');
                 window.open(group.website, '_blank');
             }
         }
@@ -1555,29 +1635,29 @@ https://another-shop.com/item?cid=ghi789&ref=promo
         function sendTestMessage(groupId) {
             const group = telegramGroups.find(g => g.id === groupId);
             if (group) {
-                toastr.info(`发送测试消息到: ${group.name}`);
-                // 这里可以调用Telegram API发送测试消息
+                showNotification(`发送测试消息到: ${group.name}`, 'info');
             }
         }
         
         function testBotConnection() {
             const token = document.getElementById('botToken').value;
             if (!token) {
-                toastr.error('请先输入Bot Token');
+                showNotification('请先输入Bot Token', 'error');
                 return;
             }
-            toastr.info('测试Telegram Bot连接...');
+            showNotification('正在测试Telegram Bot连接...', 'info');
             // 这里可以实现真实的Bot连接测试
         }
         
         function saveSettings() {
-            toastr.success('设置已保存');
+            showNotification('设置已保存', 'success');
+            // 这里可以保存设置到localStorage
         }
         
         function exportResults() {
             const data = JSON.stringify(checkResults, null, 2);
             downloadFile('检测结果.json', data);
-            toastr.success('结果已导出');
+            showNotification('结果已导出', 'success');
         }
         
         function downloadFile(filename, content) {
@@ -1593,12 +1673,12 @@ https://another-shop.com/item?cid=ghi789&ref=promo
         }
         
         function filterResults(type) {
-            toastr.info(`过滤结果: ${type}`);
+            showNotification(`过滤结果: ${type}`, 'info');
             // 这里可以实现结果过滤逻辑
         }
         
         function startGlobalCheck() {
-            toastr.info('开始全局检测所有群组绑定的网站');
+            showNotification('开始全局检测所有群组绑定的网站', 'info');
             // 这里可以实现全局检测逻辑
         }
         
@@ -1629,14 +1709,17 @@ ${result.error ? `- 错误信息: ${result.error}` : ''}
                     createdAt: new Date().toISOString()
                 });
                 updateQueueDisplay();
-                toastr.info('链接已添加到检测队列');
+                showNotification('链接已添加到检测队列', 'info');
             }
         }
         
         // 页面加载完成后初始化
         window.onload = function() {
-            console.log('页面加载完成');
-            loadAllData();
+            console.log('页面加载完成，系统已准备就绪');
+            // 显示欢迎信息
+            setTimeout(() => {
+                showNotification('系统加载完成！请先添加群组，然后输入链接进行检测。', 'info');
+            }, 1000);
         };
     </script>
 </body>
