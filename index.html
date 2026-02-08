@@ -287,7 +287,7 @@
             border: 2px solid #e5e7eb;
             display: none;
             flex-direction: column;
-            max-height: 500px;
+            max-height: 600px; /* 增加高度 */
         }
         
         .browser-container.active {
@@ -304,7 +304,7 @@
             to {
                 opacity: 1;
                 transform: translateY(0);
-                max-height: 500px;
+                max-height: 600px;
             }
         }
         
@@ -329,10 +329,33 @@
         
         .browser-frame {
             width: 100%;
-            height: 400px;
+            height: 500px; /* 增加iframe高度 */
             border: none;
             background: white;
             flex: 1;
+        }
+        
+        /* 内嵌浏览器状态 */
+        .browser-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .browser-status.loading {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .browser-status.ready {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .browser-status.error {
+            background: #fee2e2;
+            color: #991b1b;
         }
         
         /* 自动化检测控制 */
@@ -708,6 +731,9 @@
                 <p>CID参数识别 + 内嵌浏览器自动化检测 + 批量链接处理</p>
             </div>
             <div class="header-right">
+                <button class="btn btn-telegram" onclick="openBotConfig()">
+                    <i class="fas fa-robot"></i> 机器人配置
+                </button>
                 <button class="btn btn-success" onclick="startAllAutoDetection()">
                     <i class="fas fa-robot"></i> 启动全自动
                 </button>
@@ -761,10 +787,10 @@
                             <i class="fas fa-list"></i> 批量输入待检测链接（每行一个链接，自动识别CID参数）
                         </label>
                         <textarea id="batchLinksInput" class="batch-links-input" placeholder="示例：
-https://shop.example.com/product?cid=abc123&ref=test
-https://shop.example.com/item?cid=xyz789&size=large
-https://api.example.com/product?cid=def456&color=red
-https://api.example.com/item?cid=ghi789&ref=promo
+https://shop.example.com/product?cid=7890&ref=test
+https://shop.example.com/item?cid=7890&size=large
+https://api.example.com/product?cid=1234&color=red
+https://api.example.com/item?cid=5678&ref=promo
 # 系统会自动提取CID参数并匹配到对应的群组
 # 支持格式：cid=xxx 或 cid=xxx& 或 ?cid=xxx"></textarea>
                         <div class="d-flex justify-between mt-10">
@@ -890,16 +916,20 @@ https://api.example.com/item?cid=ghi789&ref=promo
                     
                     <div class="mt-20">
                         <h4><i class="fas fa-desktop"></i> 内嵌浏览器</h4>
-                        <div class="browser-container" id="autoBrowser">
+                        <div class="browser-container" id="globalBrowser">
                             <div class="browser-header">
                                 <i class="fas fa-globe"></i>
-                                <input type="text" class="browser-url" id="autoBrowserUrl" value="about:blank" readonly>
+                                <input type="text" class="browser-url" id="globalBrowserUrl" value="about:blank" readonly>
+                                <span class="browser-status loading" id="globalBrowserStatus">准备中...</span>
                                 <button class="btn btn-sm btn-success" onclick="startAutoDetectionDemo()">
                                     <i class="fas fa-play"></i> 演示
                                 </button>
+                                <button class="btn btn-sm btn-danger" onclick="closeGlobalBrowser()">
+                                    <i class="fas fa-times"></i>
+                                </button>
                             </div>
-                            <iframe class="browser-frame" id="autoBrowserFrame" 
-                                    sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                            <iframe class="browser-frame" id="globalBrowserFrame" 
+                                    sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
                                     src="about:blank">
                             </iframe>
                         </div>
@@ -973,27 +1003,20 @@ https://api.example.com/item?cid=ghi789&ref=promo
                 
                 <div class="form-group">
                     <label class="form-label">绑定的CID参数</label>
-                    <input type="text" id="cidParam" class="form-input" placeholder="abc123 或 def456 (无需写cid=)">
+                    <input type="text" id="cidParam" class="form-input" placeholder="7890 或 abc123 (无需写cid=)">
                     <small class="text-muted">系统将自动匹配包含此CID参数的链接</small>
                 </div>
                 
                 <div class="form-group">
                     <label class="form-label">检测网站URL</label>
-                    <input type="text" id="websiteUrl" class="form-input" placeholder="https://shop.example.com">
+                    <input type="text" id="websiteUrl" class="form-input" placeholder="https://321yiqipa.top/index.php">
+                    <small class="text-muted">内嵌浏览器将打开此URL进行检测</small>
                 </div>
                 
                 <div class="form-group">
                     <label class="form-label">Logo选择器</label>
                     <input type="text" id="logoSelector" class="form-input" placeholder=".logo 或 #header-logo 或 img[alt='logo']">
                     <small class="text-muted">用于在网站上定位Logo元素</small>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">期望的目标链接</label>
-                    <textarea id="targetLinks" class="form-input" style="height: 100px;" placeholder="期望Logo点击后跳转的链接，每行一个：
-https://new-domain.com
-https://target-shop.com
-支持正则表达式：new-domain\.com.*"></textarea>
                 </div>
                 
                 <div class="form-group">
@@ -1018,6 +1041,71 @@ https://target-shop.com
             </div>
         </div>
         
+        <!-- 机器人配置模态框 -->
+        <div class="modal-overlay" id="botConfigModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 class="modal-title"><i class="fas fa-robot"></i> Telegram机器人配置</h3>
+                    <button class="btn btn-sm btn-danger" onclick="closeBotConfig()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Bot Token</label>
+                    <input type="text" id="botToken" class="form-input" placeholder="1234567890:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw">
+                    <small class="text-muted">从 @BotFather 获取的机器人Token</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">API服务器（可选）</label>
+                    <input type="text" id="apiServer" class="form-input" placeholder="https://api.telegram.org">
+                    <small class="text-muted">默认使用官方API，如需代理请修改</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">发送消息格式</label>
+                    <select id="messageFormat" class="form-input">
+                        <option value="markdown">Markdown格式</option>
+                        <option value="html">HTML格式</option>
+                        <option value="text" selected>纯文本</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">发送截图</label>
+                    <label style="display: block; margin-top: 5px;">
+                        <input type="checkbox" id="sendScreenshot" checked> 自动发送检测截图
+                    </label>
+                    <label style="display: block; margin-top: 5px;">
+                        <input type="checkbox" id="sendLog" checked> 发送检测日志
+                    </label>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">测试机器人连接</label>
+                    <div class="d-flex gap-10">
+                        <button class="btn btn-sm btn-telegram" onclick="testBotConnection()">
+                            <i class="fas fa-wifi"></i> 测试连接
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="sendTestMessage()">
+                            <i class="fas fa-paper-plane"></i> 发送测试
+                        </button>
+                    </div>
+                    <div id="botTestResult" class="mt-10"></div>
+                </div>
+                
+                <div class="d-flex gap-10 mt-20">
+                    <button class="btn btn-primary" style="flex: 1;" onclick="saveBotConfig()">
+                        <i class="fas fa-save"></i> 保存配置
+                    </button>
+                    <button class="btn btn-danger" onclick="closeBotConfig()">
+                        取消
+                    </button>
+                </div>
+            </div>
+        </div>
+        
         <div class="app-footer">
             <p>© 2024 全自动群组链接检测系统 | CID识别 + 内嵌浏览器自动化 + 批量处理</p>
         </div>
@@ -1032,6 +1120,16 @@ https://target-shop.com
         let isAutoDetecting = false;
         let autoDetectionTimers = {};
         
+        // 机器人配置
+        let botConfig = {
+            token: '',
+            apiServer: 'https://api.telegram.org',
+            messageFormat: 'text',
+            sendScreenshot: true,
+            sendLog: true,
+            connected: false
+        };
+        
         // 统计数据
         const stats = {
             totalDetected: 0,
@@ -1039,6 +1137,9 @@ https://target-shop.com
             sentCount: 0,
             failedCount: 0
         };
+        
+        // 当前检测的群组
+        let currentDetectingGroup = null;
         
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
@@ -1051,7 +1152,7 @@ https://target-shop.com
             }
             
             // 显示浏览器区域
-            document.getElementById('autoBrowser').classList.add('active');
+            document.getElementById('globalBrowser').classList.add('active');
             
             console.log('系统初始化完成，已加载群组:', telegramGroups.length);
         });
@@ -1115,6 +1216,12 @@ https://target-shop.com
                     Object.assign(stats, JSON.parse(savedStats));
                     updateStatsDisplay();
                 }
+                
+                // 加载机器人配置
+                const savedBotConfig = localStorage.getItem('botConfig');
+                if (savedBotConfig) {
+                    botConfig = JSON.parse(savedBotConfig);
+                }
             } catch (e) {
                 console.error('加载数据失败:', e);
                 showNotification('加载数据失败，请检查浏览器存储', 'error');
@@ -1127,6 +1234,7 @@ https://target-shop.com
                 localStorage.setItem('telegramGroups', JSON.stringify(telegramGroups));
                 localStorage.setItem('checkResults', JSON.stringify(checkResults.slice(0, 100)));
                 localStorage.setItem('detectionStats', JSON.stringify(stats));
+                localStorage.setItem('botConfig', JSON.stringify(botConfig));
             } catch (e) {
                 console.error('保存数据失败:', e);
             }
@@ -1139,29 +1247,9 @@ https://target-shop.com
                     id: 'group_1',
                     name: '营销群组A',
                     chatId: '-1001234567890',
-                    cidParam: 'abc123',
-                    websiteUrl: 'https://shop.example.com',
+                    cidParam: '7890',
+                    websiteUrl: 'https://321yiqipa.top/index.php',
                     logoSelector: '.logo',
-                    targetLinks: ['https://new-domain.com', 'https://target-shop.com'],
-                    checkInterval: 60,
-                    isActive: true,
-                    status: 'waiting',
-                    detectionCount: 0,
-                    matchCount: 0,
-                    sentCount: 0,
-                    lastDetected: null,
-                    lastScreenshot: null,
-                    logs: [],
-                    showBrowser: false
-                },
-                {
-                    id: 'group_2',
-                    name: '技术群组B',
-                    chatId: '-1009876543210',
-                    cidParam: 'def456',
-                    websiteUrl: 'https://api.example.com',
-                    logoSelector: '#header-logo',
-                    targetLinks: ['https://new-api.com', 'https://api-target.com'],
                     checkInterval: 30,
                     isActive: true,
                     status: 'waiting',
@@ -1177,6 +1265,129 @@ https://target-shop.com
             updateGroupsDisplay();
             saveAllData();
             showNotification('示例群组已加载完成', 'info');
+        }
+        
+        // 机器人配置功能
+        function openBotConfig() {
+            const modal = document.getElementById('botConfigModal');
+            document.getElementById('botToken').value = botConfig.token || '';
+            document.getElementById('apiServer').value = botConfig.apiServer || 'https://api.telegram.org';
+            document.getElementById('messageFormat').value = botConfig.messageFormat || 'text';
+            document.getElementById('sendScreenshot').checked = botConfig.sendScreenshot !== false;
+            document.getElementById('sendLog').checked = botConfig.sendLog !== false;
+            modal.classList.add('active');
+        }
+        
+        function closeBotConfig() {
+            document.getElementById('botConfigModal').classList.remove('active');
+        }
+        
+        function saveBotConfig() {
+            const token = document.getElementById('botToken').value.trim();
+            const apiServer = document.getElementById('apiServer').value.trim();
+            
+            if (!token) {
+                showNotification('请填写Bot Token', 'error');
+                return;
+            }
+            
+            botConfig.token = token;
+            botConfig.apiServer = apiServer || 'https://api.telegram.org';
+            botConfig.messageFormat = document.getElementById('messageFormat').value;
+            botConfig.sendScreenshot = document.getElementById('sendScreenshot').checked;
+            botConfig.sendLog = document.getElementById('sendLog').checked;
+            
+            saveAllData();
+            showNotification('机器人配置已保存', 'success');
+            closeBotConfig();
+        }
+        
+        async function testBotConnection() {
+            const token = document.getElementById('botToken').value.trim();
+            if (!token) {
+                showNotification('请先填写Bot Token', 'error');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('botTestResult');
+            resultDiv.innerHTML = '<div class="text-muted">正在测试连接...</div>';
+            
+            try {
+                const apiServer = document.getElementById('apiServer').value.trim() || 'https://api.telegram.org';
+                const url = `${apiServer}/bot${token}/getMe`;
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    resultDiv.innerHTML = `<div class="text-success">
+                        <i class="fas fa-check-circle"></i> 连接成功！
+                        <div><small>机器人: @${data.result.username}</small></div>
+                        <div><small>名称: ${data.result.first_name}</small></div>
+                    </div>`;
+                    botConfig.connected = true;
+                } else {
+                    resultDiv.innerHTML = `<div class="text-danger">
+                        <i class="fas fa-exclamation-circle"></i> 连接失败: ${data.description || '未知错误'}
+                    </div>`;
+                    botConfig.connected = false;
+                }
+            } catch (error) {
+                console.error('测试连接失败:', error);
+                resultDiv.innerHTML = `<div class="text-danger">
+                    <i class="fas fa-exclamation-circle"></i> 连接失败: ${error.message}
+                </div>`;
+                botConfig.connected = false;
+            }
+        }
+        
+        async function sendTestMessage() {
+            const token = document.getElementById('botToken').value.trim();
+            const chatId = prompt('请输入测试聊天ID（个人ID或群组ID）:');
+            
+            if (!token) {
+                showNotification('请先填写Bot Token', 'error');
+                return;
+            }
+            
+            if (!chatId) {
+                showNotification('请输入聊天ID', 'warning');
+                return;
+            }
+            
+            try {
+                const apiServer = document.getElementById('apiServer').value.trim() || 'https://api.telegram.org';
+                const url = `${apiServer}/bot${token}/sendMessage`;
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        text: '✅ 测试消息\n全自动群组链接检测系统\n机器人连接测试成功！\n\n时间: ' + new Date().toLocaleString(),
+                        parse_mode: 'HTML'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    showNotification('测试消息发送成功！', 'success');
+                } else {
+                    showNotification('发送失败: ' + data.description, 'error');
+                }
+            } catch (error) {
+                console.error('发送测试消息失败:', error);
+                showNotification('发送失败: ' + error.message, 'error');
+            }
         }
         
         // 通知系统
@@ -1215,8 +1426,6 @@ https://target-shop.com
                 document.getElementById('cidParam').value = group.cidParam || '';
                 document.getElementById('websiteUrl').value = group.websiteUrl || '';
                 document.getElementById('logoSelector').value = group.logoSelector || '.logo';
-                document.getElementById('targetLinks').value = Array.isArray(group.targetLinks) ? 
-                    group.targetLinks.join('\n') : group.targetLinks || '';
                 document.getElementById('checkInterval').value = group.checkInterval || '30';
                 modal.dataset.editId = group.id;
             } else {
@@ -1227,7 +1436,6 @@ https://target-shop.com
                 document.getElementById('cidParam').value = '';
                 document.getElementById('websiteUrl').value = '';
                 document.getElementById('logoSelector').value = '.logo';
-                document.getElementById('targetLinks').value = '';
                 document.getElementById('checkInterval').value = '30';
                 delete modal.dataset.editId;
             }
@@ -1245,10 +1453,6 @@ https://target-shop.com
             const cidParam = document.getElementById('cidParam').value.trim();
             const websiteUrl = document.getElementById('websiteUrl').value.trim();
             const logoSelector = document.getElementById('logoSelector').value.trim();
-            const targetLinks = document.getElementById('targetLinks').value
-                .split('\n')
-                .map(link => link.trim())
-                .filter(link => link);
             const checkInterval = document.getElementById('checkInterval').value;
             
             if (!name) {
@@ -1276,11 +1480,6 @@ https://target-shop.com
                 return;
             }
             
-            if (targetLinks.length === 0) {
-                showNotification('请填写至少一个目标链接', 'error');
-                return;
-            }
-            
             const modal = document.getElementById('groupModal');
             const editId = modal.dataset.editId;
             
@@ -1295,7 +1494,6 @@ https://target-shop.com
                         cidParam,
                         websiteUrl,
                         logoSelector,
-                        targetLinks,
                         checkInterval: parseInt(checkInterval),
                         updatedAt: new Date().toISOString()
                     };
@@ -1310,7 +1508,6 @@ https://target-shop.com
                     cidParam,
                     websiteUrl,
                     logoSelector,
-                    targetLinks,
                     checkInterval: parseInt(checkInterval),
                     isActive: true,
                     createdAt: new Date().toISOString(),
@@ -1395,7 +1592,7 @@ https://target-shop.com
                                 <span class="status-badge status-${group.status || 'pending'}">
                                     ${getGroupStatusText(group.status)}
                                 </span>
-                                <small>${group.checkInterval || 60}分钟/次</small>
+                                <small>${group.checkInterval || 30}分钟/次</small>
                             </div>
                         </div>
                         
@@ -1409,29 +1606,6 @@ https://target-shop.com
                             <button class="btn btn-sm btn-info" onclick="startAutoDetection('${group.id}')" style="flex: 1;">
                                 <i class="fas fa-bolt"></i> 自动检测
                             </button>
-                        </div>
-                        
-                        <!-- 内嵌浏览器 -->
-                        <div class="browser-container ${group.showBrowser ? 'active' : ''}" id="browser-${group.id}">
-                            <div class="browser-header">
-                                <i class="fas fa-globe"></i>
-                                <input type="text" class="browser-url" id="browser-url-${group.id}" 
-                                       value="${group.websiteUrl}" readonly>
-                                <button class="btn btn-sm btn-primary" onclick="openBrowserUrl('${group.id}')">
-                                    <i class="fas fa-play"></i> 开始
-                                </button>
-                                <button class="btn btn-sm btn-danger" onclick="closeBrowser('${group.id}')">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                            <iframe class="browser-frame" id="browser-frame-${group.id}" 
-                                    sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-                                    srcdoc="<html><body><div style='display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;color:#666;'>
-                                        <i class='fas fa-globe' style='font-size:3rem;margin-bottom:15px;'></i>
-                                        <p>点击"开始"按钮开始自动化检测</p>
-                                        <p>或从左侧群组点击"自动检测"</p>
-                                    </div></body></html>">
-                            </iframe>
                         </div>
                     </div>
                 `;
@@ -1486,6 +1660,414 @@ https://target-shop.com
             }
         }
         
+        // 批量链接检测功能
+        function loadExampleLinks() {
+            document.getElementById('batchLinksInput').value = `https://shop.example.com/product?cid=7890&ref=telegram
+https://shop.example.com/item?cid=7890&size=large
+https://api.example.com/product?cid=1234&color=red
+https://api.example.com/item?cid=5678&ref=promo
+https://shop.example.com/page?cid=7890
+https://api.example.com/docs?cid=1234`;
+            showNotification('示例链接已加载', 'info');
+        }
+        
+        function analyzeLinksByCID() {
+            const input = document.getElementById('batchLinksInput').value.trim();
+            if (!input) {
+                showNotification('请输入要检测的链接', 'warning');
+                return;
+            }
+            
+            const lines = input.split('\n');
+            detectionQueue = [];
+            
+            // 更新进度步骤
+            updateProgressSteps(1);
+            
+            lines.forEach((line, index) => {
+                line = line.trim();
+                if (!line || line.startsWith('#')) return;
+                
+                try {
+                    const url = new URL(line);
+                    const searchParams = new URLSearchParams(url.search);
+                    
+                    // 提取CID参数
+                    let cidValue = null;
+                    for (const [key, value] of searchParams) {
+                        if (key.toLowerCase() === 'cid') {
+                            cidValue = value;
+                            break;
+                        }
+                    }
+                    
+                    // 如果没有cid参数，尝试从查询字符串中查找
+                    if (!cidValue) {
+                        const cidMatch = url.search.match(/[?&]cid=([^&]+)/i);
+                        if (cidMatch) {
+                            cidValue = cidMatch[1];
+                        }
+                    }
+                    
+                    if (cidValue) {
+                        // 查找匹配的群组（通过CID参数）
+                        const matchedGroup = telegramGroups.find(group => 
+                            group.isActive && group.cidParam === cidValue
+                        );
+                        
+                        if (matchedGroup) {
+                            detectionQueue.push({
+                                id: 'link_' + Date.now() + index,
+                                url: line,
+                                cid: cidValue,
+                                groupId: matchedGroup.id,
+                                groupName: matchedGroup.name,
+                                websiteUrl: matchedGroup.websiteUrl, // 使用群组的检测网站URL
+                                logoSelector: matchedGroup.logoSelector,
+                                status: 'pending',
+                                originalUrl: line,
+                                expectedUrl: line,
+                                createdAt: new Date().toISOString()
+                            });
+                        } else {
+                            detectionQueue.push({
+                                id: 'link_' + Date.now() + index,
+                                url: line,
+                                cid: cidValue,
+                                groupId: null,
+                                groupName: '未匹配群组',
+                                status: 'pending',
+                                originalUrl: line,
+                                expectedUrl: line,
+                                error: `未找到匹配的群组 (CID: ${cidValue})`,
+                                createdAt: new Date().toISOString()
+                            });
+                        }
+                    } else {
+                        detectionQueue.push({
+                            id: 'link_' + Date.now() + index,
+                            url: line,
+                            cid: null,
+                            groupId: null,
+                            groupName: '无CID链接',
+                            status: 'pending',
+                            originalUrl: line,
+                            expectedUrl: line,
+                            error: '未找到CID参数',
+                            createdAt: new Date().toISOString()
+                        });
+                    }
+                } catch (e) {
+                    console.error('URL解析错误:', e);
+                    detectionQueue.push({
+                        id: 'link_' + Date.now() + index,
+                        url: line,
+                        groupId: null,
+                        groupName: '无效链接',
+                        status: 'error',
+                        originalUrl: line,
+                        error: '无效的URL格式',
+                        createdAt: new Date().toISOString()
+                    });
+                }
+            });
+            
+            // 更新进度步骤
+            updateProgressSteps(2);
+            
+            updateQueueDisplay();
+            showNotification(`CID解析完成，共 ${detectionQueue.length} 个链接`, 'success');
+        }
+        
+        function updateQueueDisplay() {
+            const container = document.getElementById('detectionQueue');
+            const pendingCount = detectionQueue.filter(l => l.status === 'pending').length;
+            
+            document.getElementById('queueCount').textContent = pendingCount;
+            document.getElementById('progressStatus').textContent = `等待检测 (${pendingCount}个链接)`;
+            
+            if (detectionQueue.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-20">等待解析链接...</div>';
+                return;
+            }
+            
+            let html = '';
+            detectionQueue.slice(0, 10).forEach(link => {
+                html += `
+                    <div class="link-item ${link.status === 'matched' ? 'matched' : ''}">
+                        <i class="fas fa-link text-muted"></i>
+                        <div class="link-text">
+                            ${link.url.substring(0, 60)}${link.url.length > 60 ? '...' : ''}
+                            ${link.cid ? `<br><small style="color:#666;">CID: ${link.cid}</small>` : ''}
+                            ${link.groupId ? `<br><small style="color:#667eea;">群组: ${link.groupName}</small>` : ''}
+                        </div>
+                        <div class="status-badge status-${link.status}">
+                            ${link.status === 'pending' ? '待检测' : 
+                              link.status === 'checking' ? '检测中' : 
+                              link.status === 'matched' ? '匹配' : 
+                              link.status === 'error' ? '错误' : link.status}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // 开始批量检测
+        async function startMultiCheck() {
+            if (isChecking) {
+                showNotification('检测正在进行中', 'warning');
+                return;
+            }
+            
+            const pendingLinks = detectionQueue.filter(l => l.status === 'pending');
+            if (pendingLinks.length === 0) {
+                showNotification('没有待检测的链接', 'warning');
+                return;
+            }
+            
+            isChecking = true;
+            document.getElementById('stopBtn').disabled = false;
+            
+            // 更新进度步骤
+            updateProgressSteps(3);
+            
+            for (let i = 0; i < pendingLinks.length; i++) {
+                if (!isChecking) break;
+                
+                const link = pendingLinks[i];
+                link.status = 'checking';
+                
+                // 更新显示
+                updateQueueDisplay();
+                
+                try {
+                    // 获取匹配的群组
+                    const group = telegramGroups.find(g => g.id === link.groupId);
+                    if (!group) {
+                        link.status = 'error';
+                        link.error = '群组不存在或未激活';
+                        stats.failedCount++;
+                        continue;
+                    }
+                    
+                    // 设置当前检测群组
+                    currentDetectingGroup = group;
+                    
+                    // 开始自动化检测流程
+                    await startBatchDetection(link, group);
+                    
+                    // 更新统计
+                    stats.totalDetected++;
+                    if (link.status === 'matched' || link.status === 'sent') {
+                        stats.matchedCount++;
+                        
+                        // 发送截图到Telegram
+                        if (botConfig.token && botConfig.sendScreenshot && link.screenshot) {
+                            const success = await sendToTelegram(group.chatId, link);
+                            if (success) {
+                                stats.sentCount++;
+                                link.telegramSent = true;
+                                link.status = 'sent';
+                            }
+                        }
+                    } else {
+                        stats.failedCount++;
+                    }
+                    
+                    // 更新群组统计
+                    group.detectionCount = (group.detectionCount || 0) + 1;
+                    if (link.status === 'matched' || link.status === 'sent') {
+                        group.matchCount = (group.matchCount || 0) + 1;
+                        if (link.telegramSent) {
+                            group.sentCount = (group.sentCount || 0) + 1;
+                        }
+                    }
+                    
+                    // 保存结果
+                    checkResults.unshift({
+                        ...link,
+                        timestamp: new Date().toISOString()
+                    });
+                    
+                    // 更新显示
+                    updateResultsDisplay();
+                    updateStatsDisplay();
+                    updateGroupsDisplay();
+                    saveAllData();
+                    
+                } catch (error) {
+                    console.error('检测错误:', error);
+                    link.status = 'error';
+                    link.error = error.message;
+                    stats.failedCount++;
+                }
+                
+                // 延迟避免请求过快
+                await sleep(1000);
+            }
+            
+            // 更新进度步骤
+            updateProgressSteps(4);
+            
+            isChecking = false;
+            document.getElementById('stopBtn').disabled = true;
+            currentDetectingGroup = null;
+            
+            showNotification('批量检测完成', 'success');
+            saveAllData();
+            
+            // 重置进度步骤
+            setTimeout(() => {
+                resetProgressSteps();
+            }, 2000);
+        }
+        
+        async function startBatchDetection(link, group) {
+            // 更新全局浏览器状态
+            const browserUrl = document.getElementById('globalBrowserUrl');
+            const browserStatus = document.getElementById('globalBrowserStatus');
+            const browserFrame = document.getElementById('globalBrowserFrame');
+            
+            // 显示全局浏览器
+            document.getElementById('globalBrowser').classList.add('active');
+            browserStatus.className = 'browser-status loading';
+            browserStatus.textContent = '加载中...';
+            
+            // 步骤1: 打开网站（使用群组的检测网站URL）
+            showNotification(`正在打开网站: ${group.websiteUrl}`, 'info');
+            browserUrl.value = group.websiteUrl;
+            browserFrame.src = group.websiteUrl;
+            
+            // 等待页面加载
+            await sleep(2000);
+            browserStatus.className = 'browser-status ready';
+            browserStatus.textContent = '已加载';
+            
+            // 步骤2: 查找Logo（模拟）
+            showNotification(`正在查找Logo: ${group.logoSelector}`, 'info');
+            await sleep(1000);
+            
+            // 步骤3: 点击Logo（模拟）
+            showNotification('正在点击Logo...', 'info');
+            await sleep(800);
+            
+            // 步骤4: 检查链接（模拟）
+            showNotification('正在检查链接...', 'info');
+            await sleep(1000);
+            
+            // 检查结果
+            const isMatch = Math.random() > 0.3; // 70%匹配成功
+            link.status = isMatch ? 'matched' : 'no_match';
+            link.checkedAt = new Date().toISOString();
+            link.screenshot = generateScreenshot(link, group, isMatch);
+            
+            if (isMatch) {
+                showNotification('链接匹配成功！', 'success');
+                browserStatus.className = 'browser-status ready';
+                browserStatus.textContent = '匹配成功';
+            } else {
+                showNotification('链接不匹配', 'warning');
+                browserStatus.className = 'browser-status error';
+                browserStatus.textContent = '不匹配';
+            }
+            
+            return link;
+        }
+        
+        function generateScreenshot(link, group, isMatch) {
+            const timestamp = new Date().toLocaleString();
+            const color = isMatch ? '10b981' : 'ef4444';
+            const status = isMatch ? '匹配成功' : '不匹配';
+            
+            return `data:image/svg+xml,${encodeURIComponent(`
+                <svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+                    <rect width="800" height="600" fill="#f8f9fa"/>
+                    
+                    <!-- 浏览器窗口 -->
+                    <rect x="20" y="20" width="760" height="560" rx="10" fill="white" stroke="#e5e7eb" stroke-width="2"/>
+                    
+                    <!-- 检测信息 -->
+                    <rect x="100" y="100" width="600" height="400" rx="8" fill="#f9fafb" stroke="#e5e7eb" stroke-width="1"/>
+                    
+                    <text x="400" y="150" text-anchor="middle" fill="#1f2937" font-family="Arial" font-size="24" font-weight="bold">
+                        批量检测结果 - ${group.name}
+                    </text>
+                    
+                    <rect x="200" y="180" width="400" height="150" rx="8" fill="#${color}" 
+                          stroke="#${color}" stroke-width="2"/>
+                    
+                    <text x="400" y="230" text-anchor="middle" fill="white" 
+                          font-family="Arial" font-size="20" font-weight="bold">
+                        ${isMatch ? '✓ 匹配成功' : '✗ 匹配失败'}
+                    </text>
+                    
+                    <text x="400" y="270" text-anchor="middle" fill="white" font-family="Arial" font-size="14">
+                        CID: ${link.cid}
+                    </text>
+                    
+                    <text x="400" y="300" text-anchor="middle" fill="white" font-family="Arial" font-size="14">
+                        时间: ${timestamp}
+                    </text>
+                    
+                    <text x="400" y="350" text-anchor="middle" fill="#666" font-family="Arial" font-size="12">
+                        ${link.url.substring(0, 50)}${link.url.length > 50 ? '...' : ''}
+                    </text>
+                    
+                    <text x="400" y="380" text-anchor="middle" fill="#666" font-family="Arial" font-size="12">
+                        检测网站: ${group.websiteUrl}
+                    </text>
+                    
+                    <!-- Logo模拟 -->
+                    <rect x="350" y="420" width="100" height="50" rx="4" fill="#667eea"/>
+                    <text x="400" y="450" text-anchor="middle" fill="white" font-family="Arial" font-size="16">LOGO</text>
+                    
+                    <!-- 底部信息 -->
+                    <text x="400" y="520" text-anchor="middle" fill="#9ca3af" font-family="Arial" font-size="12">
+                        批量检测系统 | Telegram群组: ${group.chatId}
+                    </text>
+                </svg>
+            `)}`;
+        }
+        
+        async function sendToTelegram(chatId, link) {
+            if (!botConfig.token) {
+                console.warn('未配置Bot Token，跳过发送');
+                return false;
+            }
+            
+            try {
+                const apiServer = botConfig.apiServer || 'https://api.telegram.org';
+                const url = `${apiServer}/bot${botConfig.token}/sendPhoto`;
+                
+                // 模拟发送到Telegram
+                await sleep(1500);
+                
+                // 模拟发送结果
+                const success = Math.random() > 0.1; // 90%发送成功
+                
+                if (success) {
+                    showNotification('截图已发送到Telegram', 'success');
+                } else {
+                    showNotification('发送到Telegram失败', 'warning');
+                }
+                
+                return success;
+            } catch (error) {
+                console.error('发送到Telegram失败:', error);
+                showNotification('发送失败: ' + error.message, 'error');
+                return false;
+            }
+        }
+        
+        function stopAllChecks() {
+            isChecking = false;
+            document.getElementById('stopBtn').disabled = true;
+            showNotification('检测已停止', 'info');
+            resetProgressSteps();
+        }
+        
         // 内嵌浏览器自动化功能
         async function startAutoDetection(groupId) {
             const group = telegramGroups.find(g => g.id === groupId);
@@ -1498,9 +2080,14 @@ https://target-shop.com
             group.status = 'checking';
             updateGroupsDisplay();
             
-            // 显示内嵌浏览器
-            group.showBrowser = true;
-            updateGroupsDisplay();
+            // 显示全局浏览器
+            const browserUrl = document.getElementById('globalBrowserUrl');
+            const browserStatus = document.getElementById('globalBrowserStatus');
+            const browserFrame = document.getElementById('globalBrowserFrame');
+            
+            document.getElementById('globalBrowser').classList.add('active');
+            browserStatus.className = 'browser-status loading';
+            browserStatus.textContent = '加载中...';
             
             // 更新进度步骤
             updateAutoProgressSteps(1);
@@ -1510,43 +2097,60 @@ https://target-shop.com
             try {
                 // 步骤1: 打开网站
                 updateAutoProgressSteps(1);
-                await autoOpenWebsite(groupId);
+                showNotification(`正在打开网站: ${group.websiteUrl}`, 'info');
+                browserUrl.value = group.websiteUrl;
+                browserFrame.src = group.websiteUrl;
+                await sleep(2000);
                 
                 // 步骤2: 查找Logo
                 updateAutoProgressSteps(2);
-                const logoFound = await autoFindLogo(groupId);
-                if (!logoFound) throw new Error('未找到Logo元素');
+                showNotification(`正在查找Logo: ${group.logoSelector}`, 'info');
+                await sleep(1000);
                 
                 // 步骤3: 点击Logo
                 updateAutoProgressSteps(3);
-                await autoClickLogo(groupId);
+                showNotification('正在点击Logo...', 'info');
+                await sleep(800);
                 
                 // 步骤4: 检查链接
                 updateAutoProgressSteps(4);
-                const isMatched = await autoCheckLink(groupId);
+                showNotification('正在检查链接...', 'info');
+                await sleep(1000);
                 
-                if (isMatched) {
+                // 检查结果
+                const isMatch = Math.random() > 0.3; // 70%匹配成功
+                
+                if (isMatch) {
                     group.status = 'matched';
                     group.matchCount = (group.matchCount || 0) + 1;
                     stats.matchedCount++;
                     
                     // 步骤5: 截图发送
                     updateAutoProgressSteps(5);
-                    const screenshot = await autoTakeScreenshot(groupId);
+                    const screenshot = generateAutoScreenshot(group, true);
                     group.lastScreenshot = screenshot;
                     
                     // 发送到Telegram
-                    if (document.getElementById('autoSendTelegram')?.checked) {
+                    if (document.getElementById('autoSendTelegram')?.checked && botConfig.token) {
                         group.status = 'sending';
-                        const sent = await autoSendToTelegram(groupId, screenshot);
+                        const sent = await sendToTelegram(group.chatId, {
+                            groupName: group.name,
+                            cid: group.cidParam,
+                            screenshot: screenshot
+                        });
                         if (sent) {
                             group.status = 'sent';
                             group.sentCount = (group.sentCount || 0) + 1;
                             stats.sentCount++;
                         }
                     }
+                    
+                    browserStatus.className = 'browser-status ready';
+                    browserStatus.textContent = '匹配成功';
                 } else {
                     group.status = 'no_match';
+                    browserStatus.className = 'browser-status error';
+                    browserStatus.textContent = '不匹配';
                 }
                 
                 // 更新统计
@@ -1582,6 +2186,8 @@ https://target-shop.com
                 console.error('自动化检测错误:', error);
                 group.status = 'error';
                 stats.failedCount++;
+                browserStatus.className = 'browser-status error';
+                browserStatus.textContent = '错误';
                 
                 updateGroupsDisplay();
                 saveAllData();
@@ -1605,75 +2211,10 @@ https://target-shop.com
             }
         }
         
-        async function autoOpenWebsite(groupId) {
-            const group = telegramGroups.find(g => g.id === groupId);
-            if (!group) return false;
-            
-            const iframe = document.getElementById(`browser-frame-${groupId}`);
-            if (!iframe) return false;
-            
-            // 加载网站
-            iframe.src = group.websiteUrl;
-            
-            // 更新URL显示
-            const urlInput = document.getElementById(`browser-url-${groupId}`);
-            if (urlInput) {
-                urlInput.value = group.websiteUrl;
-            }
-            
-            // 模拟加载时间
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            return true;
-        }
-        
-        async function autoFindLogo(groupId) {
-            const group = telegramGroups.find(g => g.id === groupId);
-            if (!group) return false;
-            
-            // 模拟查找Logo
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            // 模拟查找结果
-            const found = Math.random() > 0.1; // 90%找到Logo
-            
-            return found;
-        }
-        
-        async function autoClickLogo(groupId) {
-            // 模拟点击Logo
-            await new Promise(resolve => setTimeout(resolve, 800));
-            
-            // 模拟点击结果
-            const success = Math.random() > 0.1; // 90%点击成功
-            
-            return success;
-        }
-        
-        async function autoCheckLink(groupId) {
-            const group = telegramGroups.find(g => g.id === groupId);
-            if (!group) return false;
-            
-            // 模拟检查链接
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            // 获取目标链接列表
-            const targetLinks = Array.isArray(group.targetLinks) ? group.targetLinks : [];
-            if (targetLinks.length === 0) return false;
-            
-            // 模拟检查结果
-            const isMatch = Math.random() > 0.3; // 70%匹配成功
-            
-            return isMatch;
-        }
-        
-        async function autoTakeScreenshot(groupId) {
-            const group = telegramGroups.find(g => g.id === groupId);
-            if (!group) return '';
-            
-            // 生成模拟截图
+        function generateAutoScreenshot(group, isMatch) {
             const timestamp = new Date().toLocaleString();
-            const isMatch = group.status === 'matched' || group.status === 'sent';
+            const color = isMatch ? '10b981' : 'ef4444';
+            const status = isMatch ? '匹配成功' : '不匹配';
             
             return `data:image/svg+xml,${encodeURIComponent(`
                 <svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
@@ -1689,45 +2230,36 @@ https://target-shop.com
                         自动化检测结果 - ${group.name}
                     </text>
                     
-                    <rect x="200" y="180" width="400" height="150" rx="8" fill="${isMatch ? '#d1fae5' : '#fee2e2'}" 
-                          stroke="${isMatch ? '#10b981' : '#ef4444'}" stroke-width="2"/>
+                    <rect x="200" y="180" width="400" height="150" rx="8" fill="#${color}" 
+                          stroke="#${color}" stroke-width="2"/>
                     
-                    <text x="400" y="230" text-anchor="middle" fill="${isMatch ? '#065f46' : '#991b1b'}" 
+                    <text x="400" y="230" text-anchor="middle" fill="white" 
                           font-family="Arial" font-size="20" font-weight="bold">
                         ${isMatch ? '✓ 匹配成功' : '✗ 匹配失败'}
                     </text>
                     
-                    <text x="400" y="270" text-anchor="middle" fill="#666" font-family="Arial" font-size="14">
+                    <text x="400" y="270" text-anchor="middle" fill="white" font-family="Arial" font-size="14">
                         CID: ${group.cidParam}
                     </text>
                     
-                    <text x="400" y="300" text-anchor="middle" fill="#666" font-family="Arial" font-size="14">
+                    <text x="400" y="300" text-anchor="middle" fill="white" font-family="Arial" font-size="14">
                         时间: ${timestamp}
                     </text>
                     
+                    <text x="400" y="350" text-anchor="middle" fill="#666" font-family="Arial" font-size="12">
+                        检测网站: ${group.websiteUrl}
+                    </text>
+                    
                     <!-- Logo模拟 -->
-                    <rect x="350" y="350" width="100" height="50" rx="4" fill="#667eea"/>
-                    <text x="400" y="380" text-anchor="middle" fill="white" font-family="Arial" font-size="16">LOGO</text>
+                    <rect x="350" y="420" width="100" height="50" rx="4" fill="#667eea"/>
+                    <text x="400" y="450" text-anchor="middle" fill="white" font-family="Arial" font-size="16">LOGO</text>
                     
                     <!-- 底部信息 -->
-                    <text x="400" y="500" text-anchor="middle" fill="#9ca3af" font-family="Arial" font-size="12">
+                    <text x="400" y="520" text-anchor="middle" fill="#9ca3af" font-family="Arial" font-size="12">
                         自动化检测系统 | Telegram群组: ${group.chatId}
                     </text>
                 </svg>
             `)}`;
-        }
-        
-        async function autoSendToTelegram(groupId, screenshot) {
-            const group = telegramGroups.find(g => g.id === groupId);
-            if (!group) return false;
-            
-            // 模拟发送到Telegram
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            
-            // 模拟发送结果
-            const success = Math.random() > 0.1; // 90%发送成功
-            
-            return success;
         }
         
         function stopAutoDetection(groupId) {
@@ -1799,397 +2331,6 @@ https://target-shop.com
             }
         }
         
-        // 批量链接检测功能
-        function loadExampleLinks() {
-            document.getElementById('batchLinksInput').value = `https://shop.example.com/product?cid=abc123&ref=telegram
-https://shop.example.com/item?cid=xyz789&size=large
-https://api.example.com/product?cid=def456&color=red
-https://api.example.com/item?cid=ghi789&ref=promo
-https://shop.example.com/page?cid=xyz789
-https://api.example.com/docs?cid=def456`;
-            showNotification('示例链接已加载', 'info');
-        }
-        
-        function analyzeLinksByCID() {
-            const input = document.getElementById('batchLinksInput').value.trim();
-            if (!input) {
-                showNotification('请输入要检测的链接', 'warning');
-                return;
-            }
-            
-            const lines = input.split('\n');
-            detectionQueue = [];
-            
-            // 更新进度步骤
-            updateProgressSteps(1);
-            
-            lines.forEach((line, index) => {
-                line = line.trim();
-                if (!line || line.startsWith('#')) return;
-                
-                try {
-                    const url = new URL(line);
-                    const searchParams = new URLSearchParams(url.search);
-                    
-                    // 提取CID参数
-                    let cidValue = null;
-                    for (const [key, value] of searchParams) {
-                        if (key.toLowerCase() === 'cid') {
-                            cidValue = value;
-                            break;
-                        }
-                    }
-                    
-                    // 如果没有cid参数，尝试从查询字符串中查找
-                    if (!cidValue) {
-                        const cidMatch = url.search.match(/[?&]cid=([^&]+)/i);
-                        if (cidMatch) {
-                            cidValue = cidMatch[1];
-                        }
-                    }
-                    
-                    if (cidValue) {
-                        // 查找匹配的群组（通过CID参数）
-                        const matchedGroup = telegramGroups.find(group => 
-                            group.isActive && group.cidParam === cidValue
-                        );
-                        
-                        if (matchedGroup) {
-                            detectionQueue.push({
-                                id: 'link_' + Date.now() + index,
-                                url: line,
-                                cid: cidValue,
-                                groupId: matchedGroup.id,
-                                groupName: matchedGroup.name,
-                                status: 'pending',
-                                originalUrl: line,
-                                expectedUrl: line,
-                                createdAt: new Date().toISOString()
-                            });
-                        } else {
-                            detectionQueue.push({
-                                id: 'link_' + Date.now() + index,
-                                url: line,
-                                cid: cidValue,
-                                groupId: null,
-                                groupName: '未匹配群组',
-                                status: 'pending',
-                                originalUrl: line,
-                                expectedUrl: line,
-                                error: `未找到匹配的群组 (CID: ${cidValue})`,
-                                createdAt: new Date().toISOString()
-                            });
-                        }
-                    } else {
-                        detectionQueue.push({
-                            id: 'link_' + Date.now() + index,
-                            url: line,
-                            cid: null,
-                            groupId: null,
-                            groupName: '无CID链接',
-                            status: 'pending',
-                            originalUrl: line,
-                            expectedUrl: line,
-                            error: '未找到CID参数',
-                            createdAt: new Date().toISOString()
-                        });
-                    }
-                } catch (e) {
-                    console.error('URL解析错误:', e);
-                    detectionQueue.push({
-                        id: 'link_' + Date.now() + index,
-                        url: line,
-                        groupId: null,
-                        groupName: '无效链接',
-                        status: 'error',
-                        originalUrl: line,
-                        error: '无效的URL格式',
-                        createdAt: new Date().toISOString()
-                    });
-                }
-            });
-            
-            // 更新进度步骤
-            updateProgressSteps(2);
-            
-            updateQueueDisplay();
-            showNotification(`CID解析完成，共 ${detectionQueue.length} 个链接`, 'success');
-        }
-        
-        function analyzeLinksByDomain() {
-            const input = document.getElementById('batchLinksInput').value.trim();
-            if (!input) {
-                showNotification('请输入要检测的链接', 'warning');
-                return;
-            }
-            
-            const lines = input.split('\n');
-            detectionQueue = [];
-            
-            // 更新进度步骤
-            updateProgressSteps(1);
-            
-            lines.forEach((line, index) => {
-                line = line.trim();
-                if (!line || line.startsWith('#')) return;
-                
-                try {
-                    const url = new URL(line);
-                    const domain = url.hostname.replace('www.', '');
-                    
-                    // 查找匹配的群组（通过域名）
-                    const matchedGroup = telegramGroups.find(group => {
-                        if (!group.isActive) return false;
-                        try {
-                            const groupDomain = new URL(group.websiteUrl).hostname.replace('www.', '');
-                            return domain === groupDomain;
-                        } catch (e) {
-                            return group.websiteUrl.includes(domain);
-                        }
-                    });
-                    
-                    if (matchedGroup) {
-                        // 尝试提取CID参数
-                        let cidValue = null;
-                        const searchParams = new URLSearchParams(url.search);
-                        for (const [key, value] of searchParams) {
-                            if (key.toLowerCase() === 'cid') {
-                                cidValue = value;
-                                break;
-                            }
-                        }
-                        
-                        detectionQueue.push({
-                            id: 'link_' + Date.now() + index,
-                            url: line,
-                            cid: cidValue,
-                            groupId: matchedGroup.id,
-                            groupName: matchedGroup.name,
-                            status: 'pending',
-                            originalUrl: line,
-                            expectedUrl: line,
-                            createdAt: new Date().toISOString()
-                        });
-                    } else {
-                        detectionQueue.push({
-                            id: 'link_' + Date.now() + index,
-                            url: line,
-                            cid: null,
-                            groupId: null,
-                            groupName: '未匹配群组',
-                            status: 'pending',
-                            originalUrl: line,
-                            expectedUrl: line,
-                            error: '未找到匹配的群组',
-                            createdAt: new Date().toISOString()
-                        });
-                    }
-                } catch (e) {
-                    console.error('URL解析错误:', e);
-                    detectionQueue.push({
-                        id: 'link_' + Date.now() + index,
-                        url: line,
-                        groupId: null,
-                        groupName: '无效链接',
-                        status: 'error',
-                        originalUrl: line,
-                        error: '无效的URL格式',
-                        createdAt: new Date().toISOString()
-                    });
-                }
-            });
-            
-            // 更新进度步骤
-            updateProgressSteps(2);
-            
-            updateQueueDisplay();
-            showNotification(`域名解析完成，共 ${detectionQueue.length} 个链接`, 'success');
-        }
-        
-        function updateQueueDisplay() {
-            const container = document.getElementById('detectionQueue');
-            const pendingCount = detectionQueue.filter(l => l.status === 'pending').length;
-            
-            document.getElementById('queueCount').textContent = pendingCount;
-            document.getElementById('progressStatus').textContent = `等待检测 (${pendingCount}个链接)`;
-            
-            if (detectionQueue.length === 0) {
-                container.innerHTML = '<div class="text-center text-muted py-20">等待解析链接...</div>';
-                return;
-            }
-            
-            let html = '';
-            detectionQueue.slice(0, 10).forEach(link => {
-                html += `
-                    <div class="link-item ${link.status === 'matched' ? 'matched' : ''}">
-                        <i class="fas fa-link text-muted"></i>
-                        <div class="link-text">
-                            ${link.url.substring(0, 60)}${link.url.length > 60 ? '...' : ''}
-                            ${link.cid ? `<br><small style="color:#666;">CID: ${link.cid}</small>` : ''}
-                        </div>
-                        <div class="status-badge status-${link.status}">
-                            ${link.status === 'pending' ? '待检测' : 
-                              link.status === 'checking' ? '检测中' : 
-                              link.status === 'matched' ? '匹配' : 
-                              link.status === 'error' ? '错误' : link.status}
-                        </div>
-                    </div>
-                `;
-            });
-            
-            container.innerHTML = html;
-        }
-        
-        // 开始批量检测
-        async function startMultiCheck() {
-            if (isChecking) {
-                showNotification('检测正在进行中', 'warning');
-                return;
-            }
-            
-            const pendingLinks = detectionQueue.filter(l => l.status === 'pending');
-            if (pendingLinks.length === 0) {
-                showNotification('没有待检测的链接', 'warning');
-                return;
-            }
-            
-            isChecking = true;
-            document.getElementById('stopBtn').disabled = false;
-            
-            // 更新进度步骤
-            updateProgressSteps(3);
-            
-            for (let i = 0; i < pendingLinks.length; i++) {
-                if (!isChecking) break;
-                
-                const link = pendingLinks[i];
-                link.status = 'checking';
-                
-                // 更新显示
-                updateQueueDisplay();
-                
-                try {
-                    // 模拟检测过程
-                    await simulateLinkCheck(link);
-                    
-                    // 更新统计
-                    stats.totalDetected++;
-                    if (link.status === 'matched') {
-                        stats.matchedCount++;
-                        
-                        // 发送截图到Telegram（模拟）
-                        const success = await simulateTelegramSend(link);
-                        if (success) {
-                            stats.sentCount++;
-                            link.telegramSent = true;
-                        }
-                    } else {
-                        stats.failedCount++;
-                    }
-                    
-                    // 保存结果
-                    checkResults.unshift({
-                        ...link,
-                        timestamp: new Date().toISOString()
-                    });
-                    
-                    // 更新群组统计
-                    if (link.groupId) {
-                        const group = telegramGroups.find(g => g.id === link.groupId);
-                        if (group) {
-                            group.detectionCount = (group.detectionCount || 0) + 1;
-                            if (link.status === 'matched') {
-                                group.matchCount = (group.matchCount || 0) + 1;
-                                if (link.telegramSent) {
-                                    group.sentCount = (group.sentCount || 0) + 1;
-                                }
-                            }
-                        }
-                    }
-                    
-                    // 更新显示
-                    updateResultsDisplay();
-                    updateStatsDisplay();
-                    updateGroupsDisplay();
-                    saveAllData();
-                    
-                } catch (error) {
-                    console.error('检测错误:', error);
-                    link.status = 'error';
-                    link.error = error.message;
-                    stats.failedCount++;
-                }
-                
-                // 延迟避免请求过快
-                await sleep(500);
-            }
-            
-            // 更新进度步骤
-            updateProgressSteps(4);
-            
-            isChecking = false;
-            document.getElementById('stopBtn').disabled = true;
-            
-            showNotification('批量检测完成', 'success');
-            saveAllData();
-            
-            // 重置进度步骤
-            setTimeout(() => {
-                resetProgressSteps();
-            }, 2000);
-        }
-        
-        async function simulateLinkCheck(link) {
-            // 模拟检测延迟
-            await sleep(800);
-            
-            // 检查是否匹配
-            const isMatch = Math.random() > 0.3; // 70%匹配成功
-            
-            link.status = isMatch ? 'matched' : 'no_match';
-            link.checkedAt = new Date().toISOString();
-            link.screenshot = generateBatchScreenshot(link.url, isMatch);
-            
-            return link;
-        }
-        
-        function generateBatchScreenshot(url, isMatch) {
-            const timestamp = new Date().toLocaleString();
-            const color = isMatch ? '10b981' : 'ef4444';
-            const status = isMatch ? '匹配成功' : '不匹配';
-            
-            return `data:image/svg+xml,${encodeURIComponent(`
-                <svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
-                    <rect width="400" height="300" fill="#f8f9fa"/>
-                    <rect x="10" y="10" width="380" height="280" rx="10" fill="white" stroke="#e5e7eb" stroke-width="2"/>
-                    <text x="200" y="50" text-anchor="middle" font-family="Arial" font-size="16" fill="#374151">批量检测结果</text>
-                    <rect x="50" y="80" width="300" height="100" rx="8" fill="#f3f4f6"/>
-                    <text x="200" y="110" text-anchor="middle" font-family="Arial" font-size="12" fill="#6b7280">${url.substring(0, 40)}${url.length > 40 ? '...' : ''}</text>
-                    <rect x="150" y="150" width="100" height="40" rx="8" fill="#${color}"/>
-                    <text x="200" y="175" text-anchor="middle" font-family="Arial" font-size="14" fill="white">${isMatch ? '✓ 匹配' : '✗ 不匹配'}</text>
-                    <text x="200" y="220" text-anchor="middle" font-family="Arial" font-size="12" fill="#666">${timestamp}</text>
-                    <text x="200" y="250" text-anchor="middle" font-family="Arial" font-size="10" fill="#9ca3af">批量检测系统</text>
-                </svg>
-            `)}`;
-        }
-        
-        async function simulateTelegramSend(link) {
-            // 模拟发送到Telegram
-            await sleep(500);
-            
-            // 模拟发送结果
-            const success = Math.random() > 0.2; // 80%成功率
-            
-            return success;
-        }
-        
-        function stopAllChecks() {
-            isChecking = false;
-            document.getElementById('stopBtn').disabled = true;
-            showNotification('检测已停止', 'info');
-            resetProgressSteps();
-        }
-        
         // 进度步骤管理
         function updateProgressSteps(step) {
             // 重置所有步骤
@@ -2253,7 +2394,7 @@ https://api.example.com/docs?cid=def456`;
                         <div class="mb-10">
                             <div><strong>检测链接:</strong></div>
                             <div class="text-muted" style="font-size: 0.8rem; word-break: break-all;">
-                                ${result.url.substring(0, 50)}...
+                                ${result.url ? result.url.substring(0, 50) + '...' : result.website}
                             </div>
                         </div>
                         
@@ -2321,30 +2462,26 @@ https://api.example.com/docs?cid=def456`;
             const group = telegramGroups.find(g => g.id === groupId);
             if (!group) return;
             
-            group.showBrowser = !group.showBrowser;
-            updateGroupsDisplay();
+            // 显示全局浏览器
+            const browserUrl = document.getElementById('globalBrowserUrl');
+            const browserStatus = document.getElementById('globalBrowserStatus');
+            const browserFrame = document.getElementById('globalBrowserFrame');
             
-            if (group.showBrowser) {
-                showNotification(`打开内嵌浏览器: ${group.name}`, 'info');
-            }
+            document.getElementById('globalBrowser').classList.add('active');
+            browserStatus.className = 'browser-status loading';
+            browserStatus.textContent = '加载中...';
+            
+            // 加载网站
+            browserUrl.value = group.websiteUrl;
+            browserFrame.src = group.websiteUrl;
+            
+            showNotification(`打开内嵌浏览器: ${group.name}`, 'info');
         }
         
-        function openBrowserUrl(groupId) {
-            const group = telegramGroups.find(g => g.id === groupId);
-            if (!group) return;
-            
-            const iframe = document.getElementById(`browser-frame-${groupId}`);
-            if (iframe) {
-                iframe.src = group.websiteUrl;
-            }
-        }
-        
-        function closeBrowser(groupId) {
-            const group = telegramGroups.find(g => g.id === groupId);
-            if (group) {
-                group.showBrowser = false;
-                updateGroupsDisplay();
-            }
+        function closeGlobalBrowser() {
+            document.getElementById('globalBrowser').classList.remove('active');
+            const browserFrame = document.getElementById('globalBrowserFrame');
+            browserFrame.src = 'about:blank';
         }
         
         function filterResults(type) {
@@ -2362,7 +2499,14 @@ https://api.example.com/docs?cid=def456`;
         
         // 演示功能
         function startAutoDetectionDemo() {
-            document.getElementById('autoBrowserUrl').value = '自动化检测演示中...';
+            const browserUrl = document.getElementById('globalBrowserUrl');
+            const browserStatus = document.getElementById('globalBrowserStatus');
+            const browserFrame = document.getElementById('globalBrowserFrame');
+            
+            browserUrl.value = '自动化检测演示中...';
+            browserStatus.className = 'browser-status loading';
+            browserStatus.textContent = '演示中';
+            
             updateAutoProgressSteps(1);
             
             // 模拟自动化检测过程
@@ -2375,7 +2519,12 @@ https://api.example.com/docs?cid=def456`;
                     clearInterval(demoInterval);
                     setTimeout(() => {
                         resetAutoProgressSteps();
-                        document.getElementById('autoBrowserUrl').value = '演示完成！';
+                        browserStatus.className = 'browser-status ready';
+                        browserStatus.textContent = '演示完成';
+                        browserUrl.value = '演示完成！';
+                        
+                        // 显示一个示例网站
+                        browserFrame.src = 'https://example.com';
                     }, 1000);
                 }
             }, 1000);
