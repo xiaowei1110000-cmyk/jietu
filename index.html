@@ -1587,6 +1587,226 @@ https://api.example.com/item?cid=5678&ref=promo
         let currentDetectionData = null;
         
         // ==============================
+        // 工具函数
+        // ==============================
+        
+        // 缺失的关键函数：DataURL 转 Blob
+        function dataURLToBlob(dataURL) {
+            try {
+                // 处理 base64 编码的 dataURL
+                const arr = dataURL.split(',');
+                const mimeMatch = arr[0].match(/:(.*?);/);
+                const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+                const bstr = atob(arr[1]);
+                let n = bstr.length;
+                const u8arr = new Uint8Array(n);
+                
+                while (n--) {
+                    u8arr[n] = bstr.charCodeAt(n);
+                }
+                
+                return new Blob([u8arr], { type: mime });
+            } catch (error) {
+                console.error('DataURL 转 Blob 失败:', error);
+                
+                // 备用方案：创建一个简单的错误图片
+                const canvas = document.createElement('canvas');
+                canvas.width = 300;
+                canvas.height = 150;
+                const ctx = canvas.getContext('2d');
+                
+                // 创建错误提示图片
+                ctx.fillStyle = '#f8f9fa';
+                ctx.fillRect(0, 0, 300, 150);
+                
+                ctx.fillStyle = '#ef4444';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('图片生成失败', 150, 50);
+                
+                ctx.fillStyle = '#666';
+                ctx.font = '12px Arial';
+                ctx.fillText('使用备用图片', 150, 80);
+                ctx.fillText(error.message.substring(0, 30), 150, 100);
+                
+                return new Promise((resolve) => {
+                    canvas.toBlob((blob) => {
+                        resolve(blob);
+                    }, 'image/png', 0.8);
+                });
+            }
+        }
+        
+        // 生成缩略图
+        async function generateThumbnail(canvas) {
+            const thumbnailCanvas = document.createElement('canvas');
+            thumbnailCanvas.width = 300;
+            thumbnailCanvas.height = Math.round(300 * canvas.height / canvas.width);
+            
+            const ctx = thumbnailCanvas.getContext('2d');
+            ctx.drawImage(canvas, 0, 0, thumbnailCanvas.width, thumbnailCanvas.height);
+            
+            return thumbnailCanvas.toDataURL('image/png', 0.8);
+        }
+        
+        // 显示截图预览
+        function showScreenshotPreview(imageData, detectionData) {
+            const preview = document.createElement('div');
+            preview.className = 'screenshot-preview-wrapper';
+            preview.innerHTML = `
+                <h5>截图预览</h5>
+                <img src="${imageData}" alt="截图预览" class="screenshot-preview" 
+                     onclick="openImagePreview('${imageData}', '${detectionData.groupName}')">
+                <small>${detectionData.groupName} - ${new Date().toLocaleString()}</small>
+            `;
+            
+            const resultsContainer = document.getElementById('resultsContainer');
+            if (resultsContainer) {
+                resultsContainer.prepend(preview);
+            }
+        }
+        
+        // 打开图片预览
+        function openImagePreview(imageData, title) {
+            const modal = document.getElementById('imagePreviewModal');
+            const img = document.getElementById('previewImage');
+            img.src = imageData;
+            img.alt = title;
+            modal.classList.add('active');
+        }
+        
+        // 关闭图片预览
+        function closeImagePreview() {
+            document.getElementById('imagePreviewModal').classList.remove('active');
+        }
+        
+        // 下载截图
+        function downloadScreenshot() {
+            const img = document.getElementById('previewImage');
+            const link = document.createElement('a');
+            link.href = img.src;
+            link.download = `website_screenshot_${new Date().getTime()}.png`;
+            link.click();
+        }
+        
+        // 重新发送到Telegram
+        function resendToTelegram() {
+            if (currentDetectionData) {
+                sendToTelegramReal(currentDetectionData.chatId || '-1001234567890', currentDetectionData);
+            }
+        }
+        
+        // 显示OCR结果
+        function showOCRResult(result) {
+            const container = document.getElementById('ocrResultContainer');
+            if (!container) return;
+            
+            const confidenceColor = result.confidence >= 80 ? '#10b981' : 
+                                   result.confidence >= 60 ? '#f59e0b' : '#ef4444';
+            
+            container.innerHTML = `
+                <div class="ocr-result ${result.confidence >= enhancedConfig.ocr.minConfidence ? 'ocr-success' : 'ocr-failed'}">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <strong>OCR识别结果</strong>
+                        <span class="status-badge" style="background: ${confidenceColor}; color: white;">
+                            置信度: ${result.confidence.toFixed(1)}%
+                        </span>
+                    </div>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <strong>识别文字:</strong>
+                        <div style="background: #2d3748; padding: 8px; border-radius: 4px; margin-top: 5px; font-size: 14px;">
+                            ${result.text}
+                        </div>
+                    </div>
+                    
+                    ${result.foundBy ? `
+                        <div style="margin-bottom: 10px;">
+                            <strong>识别方式:</strong> ${result.foundBy}
+                        </div>
+                    ` : ''}
+                    
+                    ${result.rawText ? `
+                        <div>
+                            <details>
+                                <summary style="cursor: pointer; color: #63b3ed;">查看完整识别内容</summary>
+                                <pre style="font-size: 10px; margin-top: 10px; max-height: 200px; overflow: auto; white-space: pre-wrap;">
+${result.rawText.substring(0, 1000)}
+                                </pre>
+                            </details>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <div class="d-flex gap-10 mt-20">
+                    <button class="btn btn-primary" style="flex: 1;" onclick="retryOCR()">
+                        <i class="fas fa-redo"></i> 重新识别
+                    </button>
+                    <button class="btn btn-success" style="flex: 1;" onclick="useOCRResult()">
+                        <i class="fas fa-check"></i> 使用此结果
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('ocrModal').classList.add('active');
+        }
+        
+        // 关闭OCR模态框
+        function closeOCRModal() {
+            document.getElementById('ocrModal').classList.remove('active');
+        }
+        
+        // 重新识别OCR
+        function retryOCR() {
+            if (currentDetectingGroup) {
+                testOCRFunction();
+            }
+        }
+        
+        // 使用OCR结果
+        function useOCRResult() {
+            if (currentOCRResult && currentDetectingGroup) {
+                currentDetectingGroup.logoSelector = `[data-ocr-text="${currentOCRResult.text}"]`;
+                saveAllData();
+                closeOCRModal();
+                showNotification('OCR结果已应用', 'success');
+            }
+        }
+        
+        // 显示Telegram结果
+        function showTelegramResult(success, message) {
+            const container = document.createElement('div');
+            container.className = `telegram-result ${success ? 'telegram-success' : 'telegram-error'}`;
+            container.innerHTML = `
+                <i class="fas fa-${success ? 'check-circle' : 'exclamation-circle'}"></i>
+                ${message}
+                <small>${new Date().toLocaleTimeString()}</small>
+            `;
+            
+            const resultsContainer = document.getElementById('resultsContainer');
+            if (resultsContainer) {
+                resultsContainer.prepend(container);
+            }
+        }
+        
+        // 生成日志文本
+        function generateLogText(detectionData) {
+            let logText = `📊 检测日志\n`;
+            logText += `群组: ${detectionData.groupName}\n`;
+            logText += `时间: ${new Date().toLocaleString()}\n`;
+            logText += `状态: ${detectionData.status}\n`;
+            logText += `\n详细日志:\n`;
+            
+            if (detectionData.logs && detectionData.logs.length > 0) {
+                detectionData.logs.forEach((log, index) => {
+                    logText += `${index + 1}. ${log}\n`;
+                });
+            }
+            
+            return logText;
+        }
+        
+        // ==============================
         // 初始化
         // ==============================
         document.addEventListener('DOMContentLoaded', function() {
@@ -1744,6 +1964,34 @@ https://api.example.com/item?cid=5678&ref=promo
             }
         }
         
+        // 备用Logo查找
+        async function fallbackFindLogo(frame, group) {
+            try {
+                const doc = frame.contentDocument || frame.contentWindow.document;
+                const selector = group.logoSelector || 'h1, h2, .logo, .header-logo, img[alt*="logo"], img[src*="logo"]';
+                
+                const elements = doc.querySelectorAll(selector);
+                if (elements.length > 0) {
+                    return {
+                        success: true,
+                        element: elements[0],
+                        text: '备用查找',
+                        confidence: 30,
+                        position: getElementPosition(elements[0]),
+                        isOCR: false
+                    };
+                }
+                
+                throw new Error('未找到Logo元素');
+            } catch (error) {
+                console.error('备用Logo查找失败:', error);
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        }
+        
         // 捕获页面用于OCR
         async function capturePageForOCR(frame) {
             try {
@@ -1881,6 +2129,119 @@ https://api.example.com/item?cid=5678&ref=promo
             }
         }
         
+        // 查找Logo图片
+        async function findLogoImages(frame, selector) {
+            try {
+                const doc = frame.contentDocument || frame.contentWindow.document;
+                const selectors = selector ? [selector] : [
+                    'img[alt*="logo"]', 'img[src*="logo"]', 
+                    '.logo img', '#logo img', 'img.logo',
+                    'h1', 'h2', '.header', '.title'
+                ];
+                
+                let images = [];
+                for (const sel of selectors) {
+                    const elements = doc.querySelectorAll(sel);
+                    elements.forEach(el => images.push(el));
+                }
+                
+                return Array.from(new Set(images)); // 去重
+            } catch (error) {
+                console.error('查找Logo图片失败:', error);
+                return [];
+            }
+        }
+        
+        // 对图片执行OCR
+        async function performOCROnImage(element, group) {
+            try {
+                const canvas = await html2canvas(element, {
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: null,
+                    logging: false
+                });
+                
+                const imageData = canvas.toDataURL('image/png', 0.8);
+                
+                const worker = await Tesseract.createWorker();
+                await worker.loadLanguage('eng+chi_sim');
+                await worker.initialize('eng+chi_sim');
+                
+                const result = await worker.recognize(imageData);
+                await worker.terminate();
+                
+                const text = result.data.text.trim();
+                const confidence = result.data.confidence;
+                
+                return {
+                    element: element,
+                    text: text,
+                    confidence: confidence,
+                    position: getElementPosition(element),
+                    rawText: text,
+                    isOCR: true
+                };
+                
+            } catch (error) {
+                console.error('图片OCR失败:', error);
+                return null;
+            }
+        }
+        
+        // 获取元素位置
+        function getElementPosition(element) {
+            try {
+                const rect = element.getBoundingClientRect();
+                return {
+                    x: Math.round(rect.left),
+                    y: Math.round(rect.top),
+                    width: Math.round(rect.width),
+                    height: Math.round(rect.height)
+                };
+            } catch (e) {
+                return { x: 0, y: 0, width: 0, height: 0 };
+            }
+        }
+        
+        // 高亮找到的Logo
+        async function highlightFoundLogo(element) {
+            try {
+                const position = getElementPosition(element);
+                const highlight = document.createElement('div');
+                highlight.className = 'logo-highlight';
+                highlight.style.cssText = `
+                    position: absolute;
+                    left: ${position.x}px;
+                    top: ${position.y}px;
+                    width: ${position.width}px;
+                    height: ${position.height}px;
+                `;
+                
+                document.body.appendChild(highlight);
+                
+                setTimeout(() => {
+                    if (highlight.parentNode) {
+                        highlight.parentNode.removeChild(highlight);
+                    }
+                }, 3000);
+                
+            } catch (error) {
+                console.error('高亮Logo失败:', error);
+            }
+        }
+        
+        // 点击Logo元素
+        async function clickLogoElement(element) {
+            try {
+                element.click();
+                return true;
+            } catch (error) {
+                console.error('点击Logo失败:', error);
+                return false;
+            }
+        }
+        
         // ==============================
         // 针对特定网站的截图功能
         // ==============================
@@ -1911,10 +2272,7 @@ https://api.example.com/item?cid=5678&ref=promo
                     ...enhancedConfig.screenshot,
                     useCORS: true,
                     allowTaint: true,
-                    foreignObjectRendering: true,
-                    onclone: function(clonedDoc) {
-                        addWebsiteSpecificOverlay(clonedDoc, detectionData);
-                    }
+                    foreignObjectRendering: true
                 };
                 
                 const canvas = await html2canvas(body, options);
@@ -1982,78 +2340,6 @@ https://api.example.com/item?cid=5678&ref=promo
             }
         }
         
-        // 添加网站特定覆盖层
-        function addWebsiteSpecificOverlay(clonedDoc, detectionData) {
-            try {
-                // 创建覆盖层容器
-                const overlay = clonedDoc.createElement('div');
-                overlay.style.cssText = `
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    pointer-events: none;
-                    z-index: 999999;
-                `;
-                
-                // 创建检测状态显示
-                const statusDiv = clonedDoc.createElement('div');
-                statusDiv.style.cssText = `
-                    position: absolute;
-                    top: 20px;
-                    right: 20px;
-                    background: ${detectionData.status === 'matched' ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)'};
-                    color: white;
-                    padding: 15px 25px;
-                    border-radius: 10px;
-                    font-family: Arial, sans-serif;
-                    font-size: 16px;
-                    font-weight: bold;
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-                    z-index: 1000000;
-                `;
-                
-                statusDiv.innerHTML = `
-                    <div style="margin-bottom: 5px;">${detectionData.status === 'matched' ? '✅ 检测成功' : '❌ 检测失败'}</div>
-                    <div style="font-size: 12px;">${new Date().toLocaleTimeString()}</div>
-                `;
-                
-                // 创建网站信息显示
-                const infoDiv = clonedDoc.createElement('div');
-                infoDiv.style.cssText = `
-                    position: absolute;
-                    top: 20px;
-                    left: 20px;
-                    background: rgba(59, 130, 246, 0.9);
-                    color: white;
-                    padding: 15px;
-                    border-radius: 10px;
-                    font-family: Arial, sans-serif;
-                    font-size: 12px;
-                    max-width: 300px;
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-                    z-index: 1000000;
-                `;
-                
-                infoDiv.innerHTML = `
-                    <div style="font-weight: bold; margin-bottom: 5px;">📊 检测信息</div>
-                    <div>网站: ${detectionData.websiteUrl}</div>
-                    <div>群组: ${detectionData.groupName}</div>
-                    <div>CID: ${detectionData.cid}</div>
-                    ${detectionData.logoResult ? `<div>识别文字: ${detectionData.logoResult.text}</div>` : ''}
-                    <div>时间: ${new Date().toLocaleString()}</div>
-                `;
-                
-                overlay.appendChild(statusDiv);
-                overlay.appendChild(infoDiv);
-                clonedDoc.body.appendChild(overlay);
-                
-            } catch (error) {
-                console.error('添加覆盖层失败:', error);
-            }
-        }
-        
         // 生成网站备用截图
         async function generateWebsiteFallbackScreenshot(detectionData) {
             const timestamp = new Date().toLocaleString();
@@ -2110,7 +2396,7 @@ https://api.example.com/item?cid=5678&ref=promo
         }
         
         // ==============================
-        // 真实的Telegram发送功能（支持图片）
+        // 真实的Telegram发送功能
         // ==============================
         
         async function sendToTelegramReal(chatId, detectionData) {
@@ -2131,18 +2417,25 @@ https://api.example.com/item?cid=5678&ref=promo
                 // 如果有截图，先发送图片
                 if (detectionData.screenshot && botConfig.sendScreenshot) {
                     try {
-                        const photoMessage = await sendTelegramPhoto(
-                            apiUrl, 
-                            chatId, 
-                            detectionData.screenshot.full,
-                            caption.substring(0, 1024)
-                        );
+                        const blob = dataURLToBlob(detectionData.screenshot.full);
+                        const formData = new FormData();
+                        formData.append('chat_id', chatId);
+                        formData.append('photo', blob, 'website_screenshot.png');
+                        formData.append('caption', caption.substring(0, 1024));
+                        formData.append('parse_mode', 'Markdown');
                         
-                        if (photoMessage.ok) {
+                        const response = await fetch(`${apiUrl}/sendPhoto`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.ok) {
                             messageSent = true;
                             addLog(`[${detectionData.groupName}] 真实截图已发送到Telegram`, 'success');
                         } else {
-                            throw new Error(`发送截图失败: ${photoMessage.description}`);
+                            throw new Error(`发送截图失败: ${result.description}`);
                         }
                     } catch (photoError) {
                         console.warn('发送图片失败，尝试发送文本:', photoError);
@@ -2152,17 +2445,21 @@ https://api.example.com/item?cid=5678&ref=promo
                 
                 // 如果没有发送图片或图片发送失败，发送文本消息
                 if (!messageSent) {
-                    const textMessage = await sendTelegramMessage(apiUrl, chatId, caption);
-                    if (!textMessage.ok) {
-                        throw new Error(`发送消息失败: ${textMessage.description}`);
+                    const textResponse = await fetch(`${apiUrl}/sendMessage`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chat_id: chatId,
+                            text: caption,
+                            parse_mode: 'Markdown'
+                        })
+                    });
+                    
+                    const textResult = await textResponse.json();
+                    if (!textResult.ok) {
+                        throw new Error(`发送消息失败: ${textResult.description}`);
                     }
                     addLog(`[${detectionData.groupName}] 文本消息已发送到Telegram`, 'success');
-                }
-                
-                // 发送检测日志
-                if (botConfig.sendLog && detectionData.logs && detectionData.logs.length > 0) {
-                    const logText = generateLogText(detectionData);
-                    await sendTelegramMessage(apiUrl, chatId, logText);
                 }
                 
                 detectionData.telegramSent = true;
@@ -2188,24 +2485,37 @@ https://api.example.com/item?cid=5678&ref=promo
             }
         }
         
-        // 发送Telegram图片（新增测试函数）
-        async function sendTelegramPhoto(apiUrl, chatId, photoData, caption) {
-            const blob = dataURLToBlob(photoData);
-            const formData = new FormData();
-            formData.append('chat_id', chatId);
-            formData.append('photo', blob, 'website_screenshot.png');
-            formData.append('caption', caption.substring(0, 1024));
-            formData.append('parse_mode', 'Markdown');
+        // 生成Telegram标题
+        function generateTelegramCaption(detectionData) {
+            const timestamp = new Date().toLocaleString('zh-CN');
+            const status = detectionData.status === 'matched' ? '✅ 检测成功' : '❌ 检测失败';
+            const statusEmoji = detectionData.status === 'matched' ? '🟢' : '🔴';
             
-            const response = await fetch(`${apiUrl}/sendPhoto`, {
-                method: 'POST',
-                body: formData
-            });
+            let caption = `${statusEmoji} *网站链接检测结果*\n\n`;
+            caption += `*检测网站:* ${detectionData.websiteUrl}\n`;
+            caption += `*检测群组:* ${detectionData.groupName}\n`;
+            caption += `*CID参数:* \`${detectionData.cid}\`\n`;
+            caption += `*检测状态:* ${status}\n`;
+            caption += `*检测时间:* ${timestamp}\n`;
             
-            return await response.json();
+            if (detectionData.logoResult) {
+                caption += `\n*OCR识别结果:*\n`;
+                caption += `识别文字: ${detectionData.logoResult.text}\n`;
+                caption += `置信度: ${detectionData.logoResult.confidence}%\n`;
+                caption += `识别方式: ${detectionData.logoResult.foundBy || 'OCR识别'}\n`;
+            }
+            
+            if (detectionData.pageStatus) {
+                caption += `\n*页面状态:* ${detectionData.pageStatus}\n`;
+            }
+            
+            caption += `\n---\n`;
+            caption += `_全自动群组链接检测系统 | 增强OCR版本_`;
+            
+            return caption;
         }
         
-        // 测试发送图片到Telegram
+        // 发送测试消息（包含图片）
         async function sendTestMessageWithPhoto() {
             const token = document.getElementById('botToken').value.trim();
             const chatId = prompt('请输入测试聊天ID（个人ID或群组ID）:');
@@ -2225,10 +2535,22 @@ https://api.example.com/item?cid=5678&ref=promo
                 
                 // 创建测试图片
                 const testImage = await createTestImage();
+                const blob = dataURLToBlob(testImage);
                 
                 const caption = `✅ 测试图片消息\n全自动群组链接检测系统 - 增强版\n图片发送测试成功！\n\n时间: ${new Date().toLocaleString()}`;
                 
-                const result = await sendTelegramPhoto(apiUrl, chatId, testImage, caption);
+                const formData = new FormData();
+                formData.append('chat_id', chatId);
+                formData.append('photo', blob, 'test_screenshot.png');
+                formData.append('caption', caption.substring(0, 1024));
+                formData.append('parse_mode', 'Markdown');
+                
+                const response = await fetch(`${apiUrl}/sendPhoto`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
                 
                 if (result.ok) {
                     showNotification('测试图片发送成功！', 'success');
@@ -2280,6 +2602,46 @@ https://api.example.com/item?cid=5678&ref=promo
             return canvas.toDataURL('image/png', 0.9);
         }
         
+        // 测试机器人连接
+        async function testBotConnection() {
+            const token = document.getElementById('botToken').value.trim();
+            const apiServer = document.getElementById('apiServer').value.trim() || 'https://api.telegram.org';
+            
+            if (!token) {
+                showNotification('请先填写Bot Token', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${apiServer}/bot${token}/getMe`);
+                const result = await response.json();
+                
+                const testResult = document.getElementById('botTestResult');
+                if (result.ok) {
+                    testResult.innerHTML = `<div class="telegram-success">
+                        <i class="fas fa-check-circle"></i> 连接成功！机器人: ${result.result.first_name} (@${result.result.username})
+                    </div>`;
+                    botConfig.connected = true;
+                    showNotification('机器人连接成功！', 'success');
+                    addLog('机器人连接测试成功', 'success');
+                } else {
+                    testResult.innerHTML = `<div class="telegram-error">
+                        <i class="fas fa-times-circle"></i> 连接失败: ${result.description}
+                    </div>`;
+                    botConfig.connected = false;
+                    showNotification('连接失败: ' + result.description, 'error');
+                    addLog(`机器人连接失败: ${result.description}`, 'error');
+                }
+            } catch (error) {
+                const testResult = document.getElementById('botTestResult');
+                testResult.innerHTML = `<div class="telegram-error">
+                    <i class="fas fa-times-circle"></i> 连接错误: ${error.message}
+                </div>`;
+                showNotification('连接错误: ' + error.message, 'error');
+                addLog(`机器人连接错误: ${error.message}`, 'error');
+            }
+        }
+        
         // ==============================
         // 增强的自动化检测流程
         // ==============================
@@ -2288,6 +2650,7 @@ https://api.example.com/item?cid=5678&ref=promo
             const group = telegramGroups.find(g => g.id === groupId);
             if (!group) return;
             
+            currentDetectingGroup = group;
             currentOCRResult = null;
             currentScreenshot = null;
             currentDetectionData = null;
@@ -2302,6 +2665,8 @@ https://api.example.com/item?cid=5678&ref=promo
                     timestamp: new Date().toISOString(),
                     logs: []
                 };
+                
+                currentDetectionData = detectionData;
                 
                 // 步骤1: 打开网站
                 updateAutoStep(1, '正在打开网站...');
@@ -2403,7 +2768,7 @@ https://api.example.com/item?cid=5678&ref=promo
         }
         
         // ==============================
-        // 原有功能保持不变（稍作调整）
+        // 批量链接检测功能
         // ==============================
         
         function analyzeLinksByCID() {
@@ -2660,7 +3025,7 @@ https://api.example.com/item?cid=5678&ref=promo
             return new Promise(resolve => setTimeout(resolve, ms));
         }
         
-        // 保存机器人配置时更新testWithPhoto选项
+        // 保存机器人配置
         function saveBotConfig() {
             const token = document.getElementById('botToken').value.trim();
             const apiServer = document.getElementById('apiServer').value.trim();
@@ -2684,7 +3049,7 @@ https://api.example.com/item?cid=5678&ref=promo
             closeBotConfig();
         }
         
-        // 打开机器人配置时加载testWithPhoto选项
+        // 打开机器人配置
         function openBotConfig() {
             const modal = document.getElementById('botConfigModal');
             document.getElementById('botToken').value = botConfig.token || '';
@@ -2697,8 +3062,13 @@ https://api.example.com/item?cid=5678&ref=promo
             modal.classList.add('active');
         }
         
+        // 关闭机器人配置
+        function closeBotConfig() {
+            document.getElementById('botConfigModal').classList.remove('active');
+        }
+        
         // ==============================
-        // 其他原有函数保持不变
+        // UI控制函数
         // ==============================
         
         // 切换标签页
@@ -2734,324 +3104,7 @@ https://api.example.com/item?cid=5678&ref=promo
             return titles[tabName] || tabName;
         }
         
-        // 数据管理
-        function loadAllData() {
-            try {
-                const savedGroups = localStorage.getItem('telegramGroups');
-                if (savedGroups) {
-                    telegramGroups = JSON.parse(savedGroups);
-                    updateGroupsDisplay();
-                }
-                
-                const savedResults = localStorage.getItem('checkResults');
-                if (savedResults) {
-                    checkResults = JSON.parse(savedResults);
-                    updateResultsDisplay();
-                }
-                
-                const savedStats = localStorage.getItem('detectionStats');
-                if (savedStats) {
-                    Object.assign(stats, JSON.parse(savedStats));
-                    updateStatsDisplay();
-                }
-                
-                const savedBotConfig = localStorage.getItem('botConfig');
-                if (savedBotConfig) {
-                    botConfig = JSON.parse(savedBotConfig);
-                }
-            } catch (e) {
-                console.error('加载数据失败:', e);
-                showNotification('加载数据失败，请检查浏览器存储', 'error');
-            }
-        }
-        
-        function saveAllData() {
-            try {
-                localStorage.setItem('telegramGroups', JSON.stringify(telegramGroups));
-                localStorage.setItem('checkResults', JSON.stringify(checkResults.slice(0, 100)));
-                localStorage.setItem('detectionStats', JSON.stringify(stats));
-                localStorage.setItem('botConfig', JSON.stringify(botConfig));
-            } catch (e) {
-                console.error('保存数据失败:', e);
-            }
-        }
-        
-        // 示例群组加载
-        function loadExampleGroups() {
-            telegramGroups = [
-                {
-                    id: 'group_1',
-                    name: '澳门新葡京检测',
-                    chatId: '-1001234567890',
-                    cidParam: '7890',
-                    websiteUrl: 'https://321yiqipa.top/index.php',
-                    logoSelector: 'h1, h2, .title, .header',
-                    targetLogoText: '澳门新葡京',
-                    checkInterval: 30,
-                    isActive: true,
-                    status: 'waiting',
-                    detectionCount: 0,
-                    matchCount: 0,
-                    sentCount: 0,
-                    ocrSuccessCount: 0,
-                    lastDetected: null,
-                    lastScreenshot: null,
-                    logs: [],
-                    showBrowser: false
-                },
-                {
-                    id: 'group_2',
-                    name: '505.com检测',
-                    chatId: '-1009876543210',
-                    cidParam: '1234',
-                    websiteUrl: 'https://example.com',
-                    logoSelector: 'h1, h2, .logo',
-                    targetLogoText: '505.com',
-                    checkInterval: 15,
-                    isActive: true,
-                    status: 'waiting',
-                    detectionCount: 0,
-                    matchCount: 0,
-                    sentCount: 0,
-                    ocrSuccessCount: 0,
-                    lastDetected: null,
-                    lastScreenshot: null,
-                    logs: [],
-                    showBrowser: false
-                }
-            ];
-            updateGroupsDisplay();
-            saveAllData();
-            showNotification('示例群组已加载完成', 'info');
-            addLog('示例群组已加载', 'info');
-        }
-        
-        // 日志系统
-        function addLog(message, type = 'info') {
-            const logContainer = document.getElementById('logContainer');
-            const time = new Date().toLocaleTimeString('zh-CN', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                second: '2-digit'
-            });
-            
-            const logEntry = document.createElement('div');
-            logEntry.className = 'log-entry';
-            logEntry.innerHTML = `
-                <span class="log-time">[${time}]</span>
-                <span class="log-${type}">${message}</span>
-            `;
-            
-            logContainer.appendChild(logEntry);
-            logContainer.scrollTop = logContainer.scrollHeight;
-        }
-        
-        // 生成Telegram标题
-        function generateTelegramCaption(detectionData) {
-            const timestamp = new Date().toLocaleString('zh-CN');
-            const status = detectionData.status === 'matched' ? '✅ 检测成功' : '❌ 检测失败';
-            const statusEmoji = detectionData.status === 'matched' ? '🟢' : '🔴';
-            
-            let caption = `${statusEmoji} *网站链接检测结果*\n\n`;
-            caption += `*检测网站:* ${detectionData.websiteUrl}\n`;
-            caption += `*检测群组:* ${detectionData.groupName}\n`;
-            caption += `*CID参数:* \`${detectionData.cid}\`\n`;
-            caption += `*检测状态:* ${status}\n`;
-            caption += `*检测时间:* ${timestamp}\n`;
-            
-            if (detectionData.logoResult) {
-                caption += `\n*OCR识别结果:*\n`;
-                caption += `识别文字: ${detectionData.logoResult.text}\n`;
-                caption += `置信度: ${detectionData.logoResult.confidence}%\n`;
-                caption += `识别方式: ${detectionData.logoResult.foundBy || 'OCR识别'}\n`;
-            }
-            
-            if (detectionData.pageStatus) {
-                caption += `\n*页面状态:* ${detectionData.pageStatus}\n`;
-            }
-            
-            caption += `\n---\n`;
-            caption += `_全自动群组链接检测系统 | 增强OCR版本_`;
-            
-            return caption;
-        }
-        
-        // 测试OCR功能
-        async function testOCRFunction() {
-            const frame = document.getElementById('globalBrowserFrame');
-            const group = telegramGroups[0];
-            
-            if (!group) {
-                showNotification('请先添加一个群组', 'warning');
-                return;
-            }
-            
-            showNotification('正在测试OCR识别功能...', 'info');
-            addLog('开始测试OCR识别功能', 'info');
-            
-            try {
-                const result = await enhancedFindLogo(frame, group);
-                if (result.success) {
-                    showNotification(`OCR识别成功: "${result.text}"`, 'success');
-                } else {
-                    showNotification('OCR识别失败', 'error');
-                }
-            } catch (error) {
-                console.error('OCR测试失败:', error);
-                showNotification(`OCR测试失败: ${error.message}`, 'error');
-            }
-        }
-        
-        // 更新群组显示
-        function updateGroupsDisplay() {
-            const container = document.getElementById('groupsContainer');
-            
-            if (!container) {
-                console.error('找不到groupsContainer元素');
-                return;
-            }
-            
-            if (telegramGroups.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center text-muted py-40">
-                        <i class="fab fa-telegram fa-3x mb-15"></i>
-                        <p>暂无配置的群组，请添加第一个群组</p>
-                        <button class="btn btn-primary mt-10" onclick="openAddGroupModal()">
-                            <i class="fas fa-plus"></i> 添加群组
-                        </button>
-                    </div>
-                `;
-                return;
-            }
-            
-            let html = '';
-            telegramGroups.forEach(group => {
-                const isMatched = group.status === 'matched' || group.status === 'sent';
-                const isAutoDetecting = autoDetectionTimers[group.id];
-                const hasOCRSuccess = group.ocrSuccessCount > 0;
-                
-                html += `
-                    <div class="group-card ${group.isActive ? 'active' : ''} ${isMatched ? 'matched' : ''}" id="group-${group.id}">
-                        <div class="group-header">
-                            <div class="group-name">
-                                <i class="fab fa-telegram"></i> ${group.name}
-                                ${isAutoDetecting ? '<i class="fas fa-robot text-info"></i>' : ''}
-                                ${group.status === 'sent' ? '<i class="fas fa-paper-plane text-success"></i>' : ''}
-                                ${hasOCRSuccess ? '<i class="fas fa-eye text-warning"></i>' : ''}
-                            </div>
-                            <div class="d-flex gap-10">
-                                <button class="btn btn-sm btn-warning" onclick="toggleGroupActive('${group.id}')">
-                                    <i class="fas ${group.isActive ? 'fa-pause' : 'fa-play'}"></i>
-                                </button>
-                                <button class="btn btn-sm btn-primary" onclick="editGroup('${group.id}')">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="btn btn-sm btn-danger" onclick="deleteGroup('${group.id}')">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div class="group-website">
-                            <i class="fas fa-link"></i> ${group.websiteUrl}
-                            ${group.targetLogoText ? `<br><small><i class="fas fa-font"></i> 目标文字: ${group.targetLogoText}</small>` : ''}
-                        </div>
-                        
-                        <div class="mt-15">
-                            <div class="d-flex justify-between text-muted mb-5">
-                                <small>CID: ${group.cidParam}</small>
-                                <small>检测: ${group.detectionCount || 0}次</small>
-                                <small>匹配: ${group.matchCount || 0}次</small>
-                                <small>OCR: ${group.ocrSuccessCount || 0}次</small>
-                                <small>发送: ${group.sentCount || 0}次</small>
-                            </div>
-                            <div class="d-flex justify-between align-center">
-                                <span class="status-badge status-${group.status || 'pending'}">
-                                    ${getGroupStatusText(group.status)}
-                                </span>
-                                <small>${group.checkInterval || 30}分钟/次</small>
-                            </div>
-                        </div>
-                        
-                        <div class="mt-15 d-flex gap-10">
-                            <button class="btn btn-sm btn-success" onclick="testSingleLink('${group.id}')" style="flex: 1;">
-                                <i class="fas fa-external-link-alt"></i> 测试链接
-                            </button>
-                            <button class="btn btn-sm btn-telegram" onclick="testGroupBrowser('${group.id}')" style="flex: 1;">
-                                <i class="fas fa-desktop"></i> 内嵌测试
-                            </button>
-                            <button class="btn btn-sm btn-warning" onclick="testEnhancedAutoDetection('${group.id}')" style="flex: 1;">
-                                <i class="fas fa-bolt"></i> 增强检测
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            container.innerHTML = html;
-        }
-        
-        // 显示OCR结果
-        function showOCRResult(result) {
-            const container = document.getElementById('ocrResultContainer');
-            if (!container) return;
-            
-            const confidenceColor = result.confidence >= 80 ? '#10b981' : 
-                                   result.confidence >= 60 ? '#f59e0b' : '#ef4444';
-            
-            container.innerHTML = `
-                <div class="ocr-result ${result.confidence >= enhancedConfig.ocr.minConfidence ? 'ocr-success' : 'ocr-failed'}">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <strong>OCR识别结果</strong>
-                        <span class="status-badge" style="background: ${confidenceColor}; color: white;">
-                            置信度: ${result.confidence.toFixed(1)}%
-                        </span>
-                    </div>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <strong>识别文字:</strong>
-                        <div style="background: #2d3748; padding: 8px; border-radius: 4px; margin-top: 5px; font-size: 14px;">
-                            ${result.text}
-                        </div>
-                    </div>
-                    
-                    ${result.foundBy ? `
-                        <div style="margin-bottom: 10px;">
-                            <strong>识别方式:</strong> ${result.foundBy}
-                        </div>
-                    ` : ''}
-                    
-                    ${result.rawText ? `
-                        <div>
-                            <details>
-                                <summary style="cursor: pointer; color: #63b3ed;">查看完整识别内容</summary>
-                                <pre style="font-size: 10px; margin-top: 10px; max-height: 200px; overflow: auto; white-space: pre-wrap;">
-${result.rawText.substring(0, 1000)}
-                                </pre>
-                            </details>
-                        </div>
-                    ` : ''}
-                </div>
-                
-                <div class="d-flex gap-10 mt-20">
-                    <button class="btn btn-primary" style="flex: 1;" onclick="retryOCR()">
-                        <i class="fas fa-redo"></i> 重新识别
-                    </button>
-                    <button class="btn btn-success" style="flex: 1;" onclick="useOCRResult()">
-                        <i class="fas fa-check"></i> 使用此结果
-                    </button>
-                </div>
-            `;
-            
-            document.getElementById('ocrModal').classList.add('active');
-        }
-        
-        // 测试增强检测
-        function testEnhancedAutoDetection(groupId) {
-            enhancedAutoDetection(groupId);
-        }
-        
-        // 其他原有函数（保持不变）
+        // 更新自动步骤
         function updateAutoStep(step, text, success = null) {
             const stepElement = document.getElementById(`autoStep${step}`);
             if (!stepElement) return;
@@ -3066,59 +3119,1274 @@ ${result.rawText.substring(0, 1000)}
                     icon.className = 'fas fa-circle-notch fa-spin';
                 } else if (success) {
                     icon.className = 'fas fa-check-circle text-success';
+               -check-circle text-success } else {
+                    icon.class';
                 } else {
                     icon.className = 'fas fa-times-circle text-danger';
                 }
             }
             
+            if (textSpanName = 'fas fa-times-circle text-danger';
+                }
+            }
+            
             if (textSpan) {
-                textSpan.textContent = text;
+                text) {
+                textSpan.textContent =Span.textContent = text;
+            }
+ text;
             }
         }
         
-        function showNotification(message, type = 'info') {
+               }
+        
+        //  // 显示通知显示通知
+        function showNotification(message
+        function showNotification(message, type = 'info'), type = ' {
+            const notificationinfo') {
             const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
+ = document.createElement('div');
+            notification.className = `            notification.className = `notification ${type}`notification ${type}`;
             notification.innerHTML = `
-                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
+;
+            notification.innerHTML =                <i class="fas `
+                fa-${type <i class="fas fa- === 'success'${type === 'success' ? 'check-circle' : type === 'error ? 'check-circle' : type === 'error' ? 'exclamation-circle' ?' : type === 'warning 'exclamation-circle' : type ===' ? 'ex 'warning' ? 'exclamation-triangle'clamation-triangle' : 'info-circle : 'info-circle'}'}"></"></i>
+                <span>${message}</span>
+            `;
+i>
                 <span>${message}</span>
             `;
             
+            document.body.appendChild(            
             document.body.appendChild(notification);
             
+           notification);
+            
             setTimeout(() => {
-                notification.style.opacity = '0';
-                notification.style.transform = 'translateX(100%)';
+                notification setTimeout(() => {
+                notification.style.opacity =.style.opacity = '0';
+                '0';
+                notification.style notification.style.transform = 'translateX(100%)';
+               .transform = 'translateX(100%)';
                 setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.parentNode.removeChild(notification);
+                    if (notification.parentNode setTimeout(() => {
+                    if (notification) {
+                        notification.parentNode) {
+                        notification.parentNode.removeChild.parentNode.removeChild(notification);
+                   (notification);
                     }
                 }, 300);
+ }
+                },             }, 300300);
             }, 3000);
         }
         
-        function saveDetectionResult(detectionData) {
-            checkResults.unshift({
-                ...detectionData,
-                id: 'result_' + Date.now(),
-                timestamp: new Date().toISOString()
-            });
+       0);
+        }
+ // 添加日志        
+        // 添加日志
+        function addLog(message, type
+        function addLog(message, type = 'info') = 'info') {
+            {
+            const log const logContainer = document.getElementById('logContainer = document.getElementById('logContainer');
+            const time =Container');
+            const new Date().toLocaleTimeString(' time = new Date().toLocaleTimeString('zh-CN',zh-CN', { 
+                hour: '2-digit { 
+                hour: '2-digit', 
+                minute: '', 
+                minute2-digit',
+               : '2-digit',
+                second: '2-digit'
+ second: '2-digit'
+                       });
             
-            updateResultsDisplay();
-            saveAllData();
+            const log });
+            
+           Entry = document.createElement('div const logEntry =');
+            logEntry document.createElement('div');
+            logEntry.className = 'log-entry.className = 'log-entry';
+            logEntry';
+            logEntry.innerHTML = `
+                <span.innerHTML = `
+                <span class="log-time class="log-time">[${time}]</">[${time}]</span>
+               span>
+ <span class="log-${                <span class="log-${type}">${type}message}</span>
+            `;
+            
+">${message}</span>
+            `            logContainer.appendChild;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
         }
         
-        // 页面加载完成后初始化
-        window.onload = function() {
-            console.log('全自动系统已准备就绪');
+       (logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+ // ==============================
+        //         
+        // =============================数据管理函数
+=
+        // 数据管理        // =========================函数
+        //=====
+        
+        //  ==============================
+加载所有数据
+        
+        // 加载所有数据
+        function loadAllData() {
+                   function loadAllData() {
+            try {
+                const savedGroups try {
+                const savedGroups = localStorage.getItem('telegram = localStorage.getItem('Groups');
+                iftelegramGroups');
+                if (savedGroups) {
+ (savedGroups) {
+                    telegramGroups =                    telegramGroups = JSON.parse JSON.parse(savedGroups);
+                   (savedGroups);
+                    updateGroupsDisplay();
+ updateGroupsDisplay();
+                }
+                
+                const saved                }
+                
+               Results = localStorage.getItem('check const savedResults = localStorage.getItem('checkResults');
+                if (sResults');
+avedResults) {
+                    check                if (savedResults) {
+Results = JSON.parse                    checkResults = JSON.parse(savedResults);
+                   (savedResults);
+                    update updateResultsDisplay();
+                }
+ResultsDisplay();
+                }
+                
+                const savedStats =                
+                const saved localStorage.getItem('detectionStatsStats = localStorage.getItem('det');
+                if (savedectionStats');
+                if (Stats) {
+                   savedStats) {
+                    Object.assign(stats, JSON.parse(saved Object.assign(stats, JSON.parse(savedStats));
+                    updateStats));
+                    updateStatsDisplay();
+                }
+                
+StatsDisplay();
+                }
+                
+                const savedBot                const savedBotConfig = localStorage.getItem('botConfig = localStorage.getItem('botConfig');
+                ifConfig');
+                if (savedBotConfig) (savedBot {
+                    botConfig = JSONConfig) {
+                    botConfig.parse(savedBotConfig);
+                = JSON.parse(savedBotConfig }
+           );
+                }
+            } catch (e) {
+                console.error(' } catch (e) {
+                console.error('加载数据失败:',加载数据失败:', e);
+                showNotification(' e);
+                showNotification加载数据失败，请检查('加载数据失败，浏览器存储', 'error');
+            }
+请检查浏览器存储', 'error');
+        }
+        
+                   }
+        }
+        
+        // 保存所有 // 保存所有数据
+数据
+        function saveAllData() {
+            try {
+                localStorage.setItem        function saveAllData() {
+            try {
+                localStorage.setItem('telegramGroups', JSON.stringify(('telegramGroups', JSON.stringify(telegramtelegramGroups));
+                localStorageGroups));
+                localStorage.setItem('checkResults',.setItem('check JSON.stringify(checkResultsResults', JSON.stringify(checkResults.slice(0, 100.slice(0,)));
+                localStorage.setItem(' 100)));
+                localStorage.setdetectionStats', JSON.stringifyItem('detectionStats', JSON.stringify(stats));
+               (stats));
+                localStorage localStorage.setItem('botConfig', JSON.setItem('botConfig.stringify(botConfig));
+           ', JSON.stringify(b } catch (e) {
+                console.error('保存数据失败:', e);
+            }
+otConfig));
+            } catch (e) {
+                console.error('保存数据失败:', e);
+            }
+        }
+        
+               }
+        
+        // 保存检测结果
+        function saveDetectionResult(d // 保存检测结果
+        function saveDetectionResult(detectionData) {
+           etection checkResults.unshiftData) {
+            checkResults.unshift({
+                ...detectionData({
+                ...detectionData,
+                id:,
+                id: 'result_' + 'result_' + Date.now Date.now(),
+                timestamp:(),
+                timestamp: new Date().toISOString new Date().toISOString()
+           ()
+            });
+            
+            update });
+            
+            updateResultsDisplayResultsDisplay();
+           ();
+            saveAll saveAllData();
+        }
+        
+       Data();
+        }
+        
+        // 更新群 // 更新群组显示组显示
+       
+        function updateGroupsDisplay() {
+            const function updateGroupsDisplay() {
+            const container = container = document.getElementById('groups document.getElementById('groupsContainer');
+Container');
+            
+                       
+            if (!container) {
+                if (!container) {
+                console.error console.error('找不到groupsContainer('找不到groupsContainer元素');
+                return元素');
+                return;
+           ;
+            }
+            
+            if }
+            
+            if (telegramGroups.length === (telegramGroups.length === 0) {
+                container 0) {
+.innerHTML = `
+                                   container.innerHTML = `
+                    <div <div class=" class="text-center text-mtext-center text-muted py-40uted py-40">
+                        <i class="">
+                        <i class="fab fa-telegram fafab fa-telegram fa-3x mb-3x mb-15"></i>
+                       -15"></i>
+                        <p>暂无 <p>暂无配置的配置的群组群组，请，请添加第一个群组添加第一个群组</p</p>
+                       >
+                        <button <button class="btn btn-primary mt class="btn btn-primary mt-10" onclick="openAddGroup-10" onclick="openAddGroupModal()">
+                            <iModal()">
+                            <i class="fas fa-plus"></ class="fas fa-plus"></i> 添加i> 添加群组群组
+                       
+                        </button>
+                    </div>
+                </button>
+                    </div>
+                `;
+                return;
+            `;
+                return;
+            }
+            
+            let html = }
+            
+            let '';
+            telegramGroups html = '';
+            telegramGroups.forEach(group.forEach(group => {
+ => {
+                const                const isMatched = group.status === ' isMatched = group.status === 'matched' || group.statusmatched' || group.status === === 'sent';
+                'sent';
+                const isAutoDet const isAutoDetecting =ecting = autoDetectionTimers autoDetectionTimers[group[group.id];
+                const.id];
+                const hasOCRSuccess = hasOCRSuccess = group.ocrSuccessCount > 0 group.ocrSuccessCount > 0;
+                
+                html;
+                
+                html += `
+                    <div class="group-card ${group.isActive ? 'active' : ''} += `
+                    <div class="group-card ${group.isActive ? 'active' : ''} ${isMatched ${isMatched ? 'matched' ? 'matched' : ''}" id="group : ''}" id="group-${group.id}">
+                       -${group.id}">
+                        <div class <div class="group="group-header">
+                           -header">
+                            <div class="group <div class="group-name">
+                                <i class-name">
+                                <i class="fab fa-telegram"></i="fab fa-telegram"></i> ${group.name> ${group.name}
+                               }
+                                ${is ${isAutoDetecting ?AutoDetecting ? '<i class="fas fa '<i class="fas fa-robot text-info-robot text-info"></i"></i>' : ''}
+>' : ''}
+                                ${                                ${group.statusgroup.status === 'sent' === 'sent' ? ? '<i class="fas fa-p '<i class="fas fa-paper-planeaper-plane text-success"></i text-success"></i>' : ''}
+                                ${>' : ''}
+                                ${hasOCRSuccess ?hasOCRSuccess ? '<i class=" '<i class="fas fafas fa-eye text-warning"></i-eye text-warning"></i>' : ''}
+>' : ''}
+                            </                            </div>
+div>
+                                                       <div class="d <div class="d-flex gap-flex gap-10">
+                               -10">
+                                <button class=" <button class="btn btnbtn btn-sm btn-sm btn-warning" onclick-warning" onclick="toggleGroupActive('${="toggleGroupActive('${group.idgroup.id}')}')">
+                                   ">
+                                    <i class="fas ${ <i class="fas ${group.isActive ?group.isActive ? 'fa-pause' : 'fa-pause' : 'fa-play'}"></i 'fa-play'}"></i>
+                                </button>
+                               >
+                                </button <button class="btn btn-sm btn>
+                                <button class="btn btn-primary"-sm btn-primary" onclick="editGroup('${group.id}')">
+                                    onclick="editGroup('${group.id}')">
+                                    <i <i class="fas fa-edit class="fas fa-edit"></i>
+                               "></i>
+                                </button>
+                                <button </button>
+                                <button class=" class="btn btn-sm btnbtn btn-sm btn-danger"-danger" onclick="deleteGroup onclick="deleteGroup('${('${group.idgroup.id}')">
+                                    <i class="fas fa-trash"></i}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                       >
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="group </div>
+                        
+                        <div class="group-website-website">
+                           ">
+                            <i <i class="fas fa class="fas fa-link"></-link"></i>i> ${group ${group.websiteUrl}
+                            ${group.targetLogoText.websiteUrl}
+                            ${group.targetLogoText ? `<br ? `<br><small><i class><small><i class="fas fa-font="fas fa-font"></i> "></i> 目标文字目标文字: ${: ${group.targetLogoText}</small>` : ''}
+                        </div>
+group.targetLogoText}</small>` : ''}
+                        </div>
+                        
+                        <div class="                        
+                        <div class="mt-15">
+mt-15">
+                                                       <div class="d-flex justify <div class="d-between text-muted-flex justify-between text-muted mb-5">
+                                <small> mb-5">
+                               CID: ${group <small>CID:.cidParam}</small>
+ ${group.cidParam}</                                <small>检测: ${group.detsmall>
+                                <small>检测: ${groupectionCount || 0}.detectionCount || 0}次</次</small>
+small>
+                                <small>匹配: ${group.matchCount ||                                 <small>匹配: ${group.matchCount || 0}0}次</次</small>
+                                <small>small>
+                                <small>OCR: ${group.ocrSuccessCountOCR: ${group.ocr || 0}SuccessCount || 0}次</small>
+                               次</small>
+                                <small>发送: <small>发送: ${group ${group.sentCount || 0.sentCount || 0}次</small>
+                           }次</small>
+                            </div>
+                            </div <div class="d-flex>
+                            <div class="d-flex justify-between align-center">
+                                justify-between align-center">
+                                <span <span class="status-b class="status-badge status-${group.statusadge status-${group.status || 'pending'}">
+                                    || 'pending'}">
+                                    ${getGroupStatusText(group ${getGroupStatusText(group.status)}
+.status)}
+                                </span>
+                                </span>
+                                                               <small>${group <small>${group.checkInterval || .checkInterval || 30}30}分钟/次</分钟/次</small>
+                            </small>
+                            </div>
+div>
+                        </                        </div>
+                        
+                        <div class="mt-15 d-flex gap-10div>
+                        
+                        <div class="mt-15 d-flex gap-10">
+                           ">
+                            <button class=" <button class="btn btn-sm btn-success"btn btn-sm btn-success" onclick="testSingleLink(' onclick="testSingleLink('${group${group.id}')".id}')" style=" style="flex: 1;">
+                                <i class="flex: 1;">
+                                <i class="fas fafas fa-external-link-alt"></i-external-link-alt"></i> > 测试链接测试链接
+                           
+                            </button>
+                            </button>
+                            <button class=" <button class="btn btnbtn btn-sm btn-sm btn-telegram"-telegram" onclick="testGroup onclick="testGroupBrowser('Browser('${group.id}')"${group.id}')" style="flex: 1;">
+                                <i class="fas fa-desktop"></i> 内嵌 style="flex: 1;">
+                                <i class="fas fa-desktop"></i> 测试
+                            </内嵌测试
+button>
+                            <button class                            </button>
+                            <button class="btn="btn btn-sm btn-warning" btn-sm btn-warning" onclick="testEnhanced onclick="testEnhancedAutoDetection('${group.id}')AutoDetection('${group.id}')" style="flex: " style="flex: 1;">
+                                <i class1;">
+                                <i class="fas fa-b="fas fa-bolt"></i> 增强olt"></i>检测
+                            </button>
+                        </ 增强检测
+                            </button>
+div>
+                    </div>
+                `                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML =;
+            });
+            
+            container html;
+        }
+        
+       .innerHTML = html;
+        }
+ function getGroupStatusText(status        
+        function getGroupStatusText(status) {
+            const) {
+            const statusMap = {
+                'waiting statusMap = {
+                '': '等待',
+waiting': '等待',
+                'checking': '                'checking': '检测中',
+                'matched检测中',
+                'matched': '匹配成功',
+                'no_match':': '匹配成功',
+                'no '不匹配',
+                '_match': '不匹配',
+sent': '已                'sent': '已发送',
+                'error': '错误发送',
+                'error':'
+            };
+            return status '错误'
+            };
+            return statusMap[status] || statusMap[status] || '等待 || status || '等待';
+        }
+        
+        //';
+        }
+        
+        // 更新统计显示
+        function updateStats 更新统计显示
+        functionDisplay() {
+            updateStatsDisplay() document.getElementById('totalDetected {
+            document.getElementById('total').textContent =Detected').textContent = stats.totalDetected;
+            document.getElementById stats.totalDetected;
+            document.getElementById('matchedCount').('matchedCount').textContent = stats.matchedtextContent = statsCount;
+            document.matchedCount;
+            document.getElementById('sentCount').textContent =.getElementById('sentCount').textContent = stats.sentCount stats.sentCount;
+            document.getElementById('failed;
+            document.getElementByIdCount').textContent = stats('failedCount').textContent = stats.failedCount;
+        }
+.failedCount;
+        }
+        
+        // 更新结果        
+        // 显示
+        function更新结果显示
+        function updateResults updateResultsDisplay() {
+            const containerDisplay() {
+            const container = document = document.getElementById('resultsContainer.getElementById('resultsContainer');
+            if (!container) return;
+');
+            if (!container) return;
+            
+                       
+            if ( if (checkResultscheckResults.length ===.length === 0 0) {
+                container.innerHTML = `
+                    <div class="text-center) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-40" style text-muted py-40" style="grid-column: 1="grid-column: 1 / - / -1;">
+                       1;">
+                        <i class="fas fa-search <i class="fas fa-search fa-3x fa-3x mb-15"></i>
+ mb-15"></i>
+                        <p>                        <p>暂无检测结果</p>
+                    </暂无检测结果</p>
+                    </div>
+                `div>
+                `;
+                return;
+;
+                return;
+            }
+            
+                       }
+            
+            let html = '';
+            check let html = '';
+            checkResults.slice(0Results.slice(0, 12).forEach(result => {
+, 12).forEach(result => {
+                html += `
+                    <div class="result-card ${result.status === 'matched'                html += `
+                    <div class="result-card ${result.status === 'matched' || result.status === 'sent' ? 'success' : || result.status === 'sent' ? 'success' : 'error'}">
+                        'error'}">
+                        <div class <div class="result-header">
+="result-header">
+                                                       <h4>${result.groupName}</h4 <h4>${result.group>
+                            <spanName}</h4>
+                            class="status-badge status-${ <span class="status-badge statusresult.status}">-${result.status}">${result${result.status}</span>
+                        </.status}</span>
+div>
+                        <div>
+                        </div>
+                                                   <small <div>
+                            <small><i class="fas fa><i class="fas fa-link"></-link"></i> ${result.websitei> ${result.websiteUrl}</small>
+                            <p>Url}</small>
+                            <p>CID: ${result.cidCID: ${result}</p>
+                            ${result.log.cid}</p>
+                            ${oResultresult.logoResult ? `<p>OCR: ? `<p>OCR: ${result.logo ${result.logoResult.textResult.text}</p>` : ''}
+}</p>` : ''}
+                            ${result.screenshot ?                            ${result.screenshot ? `<img src="${result.s `<img src="${result.screenshot.thumbnail}" alt="creenshot.thumbnail}" alt="截图" style="width截图" style=": 100%; border-radiuswidth: 100%; border-radius: 4px: 4px; margin; margin-top: 10-top: 10px;">px;">` : ''}
+` : ''}
+                                                       <small>${new <small>${new Date(result Date(result.timestamp).to.timestamp).toLocaleString()}</small>
+LocaleString()}</small>
+                        </                        </div>
+                    </div>
+                `;
+            });
+            
+            containerdiv>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+       .innerHTML = html;
+        }
+        
+        // = // ==============================
+       =============================
+        // 群组 // 群组管理函数
+       管理函数
+        // ============================= // ==============================
+        
+        //=
+        
+        // 打开添加群 打开添加群组模态组模态框
+        function框
+        function openAddGroupModal() {
+            document.getElementById('modalTitle').text openAddGroupModal() {
+            document.getElementById('modalTitle').textContent =Content = '添加新群 '添加新组';
+            document.getElementById('groupName').value = '';
+            document群组';
+            document.getElementById('groupName').value = '';
+.getElementById('chatId').value            document.getElementById('chatId').value = '';
+            document = '';
+            document.getElementById('.getElementById('cidParam').valuecidParam').value = '';
+            document = '';
+            document.getElementById('.getElementById('websiteUrl').value = '';
+            document.getElementById('logoSelectorwebsiteUrl').value = '';
+            document.getElementById('logoSelector').value = '';
+            document.getElementById('targetLogoText').value = '';
+            document.getElementById('checkInterval').value = '30').value = '';
+            document.getElementById('targetLogoText').value = '';
+            document.getElementById('checkInterval').value = '30';
+            
+';
+            
+            document.getElementById('groupModal            document.getElementById('groupModal').classList.add').classList.add('active');
+        }
+        
+        //('active');
+        }
+        
+        // 编辑 编辑群组
+       群组
+        function editGroup(groupId function editGroup(groupId)) {
+            const group = telegram {
+            const group = telegramGroups.findGroups.find(g => g.id(g => g.id === group === groupId);
+            if (!groupId);
+            if (!group) return;
+            
+            document) return;
+            
+            document.getElementById('modalTitle.getElementById('modalTitle').text').textContent = '编辑群组Content = '编辑群组';
+            document.getElementById('groupName').value =';
+            document.getElementById('groupName').value = group.name;
+            document.getElementById group.name;
+            document.getElementById('chat('chatId').Id').value = group.chatId;
+           value = group.chatId;
+            document.getElementById document.getElementById('cidParam').value =('cidParam').value = group.cidParam;
+            document.getElementById group.cidParam;
+            document.getElementById('websiteUrl').('websiteUrl').value =value = group.websiteUrl group.websiteUrl;
+           ;
+            document.getElementById('logo document.getElementById('logoSelector').Selector').value = group.logvalue = group.logoSelectoroSelector || '';
+            document || '';
+            document.getElementById('.getElementById('targetLogoText').value =targetLogoText').value = group.targetLogoText || '';
+            group.targetLogoText || '';
+ document.getElementById('            document.getElementById('checkIntervalcheckInterval').value = group.checkInterval').value = group.checkInterval || '30';
+            
+            || '30';
+            
+            currentDet currentDetectingGroup = groupectingGroup = group;
+            
+            document.getElementById(';
+            
+            document.getElementById('groupModal').classList.add('activegroupModal').classList.add('active');
+       ');
+        }
+        
+        // 保存群组
+        }
+        
+        // 保存群组
+        function saveGroup() {
+ function saveGroup() {
+            const name            const name = document = document.getElementById('groupName').value.trim();
+.getElementById('groupName').value.trim();
+            const chatId            const chatId = document.getElementById('chatId = document.getElementById('chatId').value.trim();
+            const cid').value.trim();
+            const cidParam = document.getElementById('cidParam = document.getElementById('cidParam').value.trimParam').value.trim();
+           ();
+            const websiteUrl = document.getElementById const websiteUrl = document.getElementById('websiteUrl').('websiteUrl').value.trimvalue.trim();
+            const logo();
+            const logoSelector =Selector = document.getElementById('logo document.getElementById('logoSelector').Selector').value.trim();
+            const targetLogoText = documentvalue.trim();
+            const targetLogoText = document.getElementById('targetLogoText').value.trim.getElementById('targetLogoText').value.trim();
+           ();
+            const check const checkInterval = parseInt(document.getElementById('checkInterval').valueInterval = parseInt(document.getElementById('checkInterval').value);
+            
+);
+            
+            if            if (!name || !chatId (!name || !chatId || !cidParam || !websiteUrl || !cidParam || !websiteUrl) {
+                show) {
+                showNotification('Notification('请填写所有必填字段请填写所有必填字段', 'error');
+                return', 'error');
+                return;
+            }
+            
+;
+            }
+            
+            if            if (current (currentDetectingDetectingGroup) {
+                // 编辑现有群组
+               Group) {
+                // 编辑现有群组
+                currentDetectingGroup.name = currentDetectingGroup.name = name;
+                currentDetectingGroup.ch name;
+                currentDetectingGroup.chatId = chatatId = chatId;
+                currentDetectingGroup.cidParam = cidParam;
+                currentDetectingGroupId;
+                currentDetectingGroup.cidParam = cidParam;
+                currentDet.websiteUrl = websiteUrl;
+                currentDetectingGroupectingGroup.websiteUrl = websiteUrl;
+                currentDetectingGroup.logoSelector = logoSelector.logoSelector = logoSelector;
+                currentDetectingGroup.targetLogo;
+                currentDetectingGroupText = targetLogoText;
+                current.targetLogoText = targetLogoText;
+                currentDetectingGroup.checkInterval = checkIntervalDetectingGroup.checkInterval = checkInterval;
+                
+                showNotification(';
+                
+                show群组已更新', 'success');
+Notification('群组已更新', '                addLog(`更新success');
+                addLog(`群组: ${更新群组: ${name}`, 'info');
+            }name}`, 'info');
+ else {
+                // 添加新群            } else {
+                // 添加组
+                const新群组
+                const newGroup newGroup = {
+ = {
+                    id: 'group_' + Date.now(),
+                    id: 'group_' + Date.now(),
+                    name,
+                    name,
+                                       chatId,
+                    c chatId,
+idParam,
+                    websiteUrl                    cidParam,
+                    websiteUrl,
+                    logoSelector,
+,
+                    logoSelector,
+                    targetLogoText,
+                                       targetLogoText,
+                    checkInterval,
+                    isActive checkInterval,
+                    isActive: true,
+                    status: 'wait: true,
+                    status: 'waiting',
+                    detectionCount: 0ing',
+                    detectionCount:,
+                    matchCount 0,
+                    matchCount: 0,
+: 0,
+                    sent                    sentCount: 0,
+                   Count: 0 ocrSuccessCount: 0,
+                    last,
+                    ocrSuccessCount: 0,
+                    lastDetected: null,
+                    lastSDetected: nullcreenshot: null,
+,
+                    lastScreenshot: null,
+                    logs: [],
+                    showBrowser:                    logs: [],
+                    show false
+                };
+Browser: false
+                };
+                
+                               
+                telegramGroups.push(newGroup);
+ telegramGroups.push(new                showNotification('群组Group);
+                showNotification('已添加', 'success');
+群组已添加', 'success');
+                addLog(`添加群                addLog(`添加群组: ${name}`, 'info组: ${name}`, 'info');
+            }
+            
+            save');
+            }
+            
+            saveAllData();
+            updateGroupsAllData();
+            updateGroupsDisplay();
+            closeModal();
+Display();
+            closeModal();
+        }
+        
+        // 关闭模态        }
+        
+        // 框
+        function closeModal关闭模态框
+        function() {
+            document closeModal() {
+            document.getElementById('groupModal').classList.remove.getElementById('groupModal').classList.remove('active');
+            currentDet('active');
+            currentDetectingGroup = null;
+        }
+        
+ectingGroup = null;
+        }
+        
+        // 删除群组        // 删除
+       群组
+        function delete function deleteGroup(groupId) {
+            if (confirm('Group(groupId) {
+            if (confirm('确定要删除这个群组吗？确定要删除这个群组')) {
+                telegramGroups =吗？')) {
+                telegramGroups = telegramGroups.filter(g => g telegramGroups.filter(g => g.id !== groupId);
+               .id !== groupId);
+                saveAllData();
+                update saveAllData();
+                updateGroupsDisplayGroupsDisplay();
+                showNotification();
+                showNotification('群组已删除', 'success('群组已删除',');
+                addLog 'success');
+                addLog('删除群组', 'info');
+('删除群组', '            }
+        }
+        
+       info');
+            }
+        }
+        
+        // 切换群组激活 // 切换群组激活状态
+        function toggleGroup状态
+        function toggleGroupActive(groupId) {
+           Active(groupId) {
+            const group = telegramGroups.find(g => g.id === groupId);
+            if (group) {
+ const group = telegramGroups.find(g => g.id === groupId);
+            if (group) {
+                group.isActive                group.isActive = !group.is = !group.isActive;
+                saveActive;
+                saveAllData();
+                updateGroupsAllData();
+                updateGroupsDisplay();
+                showNotification(`群组Display();
+                showNotification(`群组已${group.isActive已${group.isActive ? '激活' : '停 ? '激活' : '停用'}`, '用'}info');
+                addLog(`${group.is`, 'info');
+                addLog(`${group.isActive ? '激活' :Active ? '激活' : '停 '停用'}用'}群组: ${group.name群组: ${group.name}`, 'info');
+           }`, 'info');
+            }
+        }
+        
+ }
+        }
+        
+        //        // 加载示例群 加载示例群组
+        function loadExample组
+        function loadExampleGroups()Groups() {
+            telegramGroups = [
+ {
+            telegramGroups = [
+                {
+                    id                {
+                    id: ': 'group_1',
+                    namegroup_1',
+                    name: '澳门新葡京: '澳门新葡京检测',
+检测',
+                    chatId:                    chatId: '-100 '-1001234567890',
+                   1234567890',
+                    cid cidParam: '7890',
+Param: '7890',
+                    website                    websiteUrl:Url: 'https://321yiqipa.top 'https://321yiqipa.top/index.php/index.php',
+                    logoSelector',
+                    logoSelector: ': 'h1, h2,h1, h2, .title, .header',
+ .title, .header',
+                    targetLogoText: '                    targetLogoText: '澳门新澳门新葡京',
+                    checkInterval葡京',
+                    checkInterval: 30,
+                    isActive:: 30,
+                    isActive: true,
+                    status: 'waiting true,
+                    status: 'waiting',
+                   ',
+                    detectionCount:  detectionCount: 0,
+0,
+                    matchCount:                    matchCount: 0,
+                    sentCount 0,
+                    sentCount: : 0,
+                    oc0,
+                    ocrrSuccessCount: 0SuccessCount: 0,
+                   ,
+                    lastDetected: lastDetected: null,
+ null,
+                    lastScreenshot: null                    lastScreenshot: null,
+                    logs: [],
+                   ,
+                    logs: [],
+                    showBrowser: false
+                showBrowser: false
+                },
+                {
+                    },
+                {
+                    id: 'group_2',
+                    id: 'group_2',
+                    name: name: '505.com检测',
+                    '505.com检测',
+                    chatId: '-100987654321 chatId: '-1009876543210',
+                    cidParam0',
+                    c: '1234',
+                    websiteUrlidParam: '1234',
+                    websiteUrl: 'https://example.com: 'https://example.com',
+                    logoSelector: '',
+                    logoSelector: 'h1, h2,h1, h2, .logo .logo',
+                    targetLogoText:',
+                    targetLogoText: '505.com',
+                    check '505.com',
+                    checkInterval:Interval: 15,
+                    15,
+                    isActive: true,
+                    status: 'wait isActive: true,
+                    status: 'waiting',
+                    detectioning',
+                    detectionCount: 0,
+                    matchCountCount: 0,
+                    matchCount: 0,
+: 0,
+                    sentCount:                    sentCount: 0,
+                    ocrSuccessCount 0,
+                    ocrSuccessCount: 0,
+                    last: 0,
+                    lastDetected: nullDetected: null,
+                    lastScreenshot:,
+                    lastScreenshot: null,
+                    logs null,
+                    logs: [],
+                   : [],
+                    showBrowser: false
+                }
+ showBrowser: false
+                }
+            ];
+            updateGroupsDisplay            ];
+            updateGroupsDisplay();
+            saveAllData();
+            showNotification('();
+            saveAllData();
+            show示例群组已加载完成Notification('示例群组已加载完成', 'info');
+            add', 'info');
+            addLog('示例群组已Log('示例群组已加载', 'info');
+        }
+        
+        // 加载示例链接
+        function loadExampleLinks加载', 'info');
+        }
+        
+        // 加载示例链接
+        function loadExampleLinks() {
+            const examples() {
+            const examples = `https://shop.example = `https://.com/product?cid=7890&shop.example.com/product?cid=789ref=test
+https://shop.example.com/item0&ref=test
+https://shop.example?cid=7890&.com/item?cid=789size=large
+https://api.example0&size=large
+https://.com/product?cid=1234&api.example.com/product?cid=123color=red
+4&color=https://api.example.com/itemred
+https://api.example.com/item?cid=5678&ref=?cid=5678&ref=promo`;
+            
+promo`;
+            
+            document            document.getElementById('batchLinksInput')..getElementById('batchLinksInput').value = examples;
+            showNotification('value = examples;
+            showNotification('示例链接已加载', '示例链接已加载', 'infoinfo');
+        }
+        
+        // ==============================
+       ');
+        }
+        
+        // ==============================
+        // 浏览器相关函数
+ // 浏览器相关函数
+        // ==============================
+        
+               // ==============================
+        
+        // 测试网站
+        function testRealWebsite() {
+            const url // 测试网站
+        function testRealWebsite() {
+            const url = prompt('请输入要测试 = prompt('请输入要测试的网站URL:', 'https的网站URL:', 'https://example.com');
+://example.com');
+            if            if (url (url) {
+                const browserUrl = document.getElementById(') {
+                const browserUrl = document.getElementById('globalBrowserUrl');
+                constglobalBrowserUrl');
+                const browserFrame browserFrame = document.getElementById('globalBrowser = document.getElementById('globalBrowserFrame');
+Frame');
+                const                const browserLoading browserLoading = document.getElementById('browserLoading');
+                const browserStatus = document.getElementById('browserLoading');
+                const browserStatus = document.getElementById('globalBrowserStatus');
+ = document.getElementById('globalBrowserStatus');
+                
+                               
+                browserLoading.classList.add('active browserLoading.classList.add('active');
+               ');
+                browserStatus.className browserStatus.className = ' = 'browserbrowser-status loading';
+                browserStatus-status loading';
+                browserStatus.textContent.textContent = '加载中...';
+                
+                = '加载中...';
+                
+                browserUrl.value = url;
+                browser browserUrl.value = url;
+                browserFrame.srcFrame.src = url;
+                
+ = url;
+                
+                showNotification('正在加载                showNotification('网站...', 'info');
+正在加载网站...', 'info');
+                addLog(`测试网站:                addLog(`测试 ${url网站: ${url}`,}`, 'info');
+            }
+        }
+        
+ 'info');
+            }
+        }
+        
+        // 测试OCR功能        // 测试OCR功能
+        async function testOCR
+        async function testOCRFunction()Function() {
+            {
+            const frame = document.getElementById('globalBrowserFrame');
+            const group = const frame = document.getElementById('globalBrowserFrame');
+            const group = telegramGroups[0] || {
+                telegramGroups[0] || {
+                name: '测试群组',
+                logo name: '测试群组',
+                logoSelector: 'h1, h2Selector: 'h1,, img',
+                target h2, img',
+               LogoText: ''
+            targetLogoText: ''
+            };
+            
+            showNotification('正在测试 };
+            
+            showNotification('正在测试OCR识别功能...', 'info');
+OCR识别功能...', '            addLog('开始测试OCR识别功能', 'info');
+            
+            try {
+                const result = awaitinfo');
+            addLog('开始测试OCR识别功能', 'info');
+            
+            try {
+                const result = await enhancedFindLogo(frame, group);
+                if ( enhancedFindLogo(frame, groupresult.success) {
+                    show);
+                if (result.success) {
+                    showNotification(`OCR识别成功:Notification(`OCR识别 "${result.text}"`, '成功: "${result.text}"success');
+                }`, 'success');
+                } else {
+ else {
+                    showNotification('OCR识别失败', 'error                    showNotification('OCR识别失败', 'error');
+               ');
+                }
+            } catch (error) {
+                console.error('OCR测试失败:', }
+            } catch (error) {
+                console.error('OCR测试失败:', error);
+                show error);
+                showNotification(`OCR测试失败: ${error.message}Notification(`OCR测试失败: ${error.message}`, '`, 'error');
+            }
+        }
+error');
+            }
+        }
+        
+        // 打开网站进行        
+        // 打开网站进行检测
+        async function openWebsiteFor检测
+        async function openWebsiteForDetection(urlDetection(url) {
+            const) {
+            const browserUrl browserUrl = document.getElementById(' = document.getElementById('globalBrowserglobalBrowserUrl');
+            constUrl');
+            const browserFrame = document.getElementById('globalBrowser browserFrame = document.getElementById('globalBrowserFrame');
+Frame');
+            const            const browser browserLoading = document.getElementById('browserLoading');
+            const browserStatus = documentLoading = document.getElementById('browserLoading');
+            const browserStatus = document.getElementById('globalBrowserStatus');
+            
+           .getElementById('globalBrowserStatus');
+            
+            browserLoading.classList.add('active');
+            browserStatus.className = 'browser browserLoading.classList.add('active');
+            browserStatus.className-status loading';
+            browserStatus = 'browser-status loading';
+            browserStatus.textContent = '加载中.textContent = '加载中...';
+            
+            browserUrl.value =...';
+            
+            browserUrl.value = url;
+            browser url;
+            browserFrame.src = url;
+            
+            awaitFrame.src = url;
+            
+            await waitForBrowserLoad(browserFrame);
+            browserLoading.classList.remove(' waitForBrowserLoad(browserFrame);
+            browseractive');
+            browserStatus.className = 'bLoading.classList.remove('active');
+            browserStatus.className = 'browser-status ready';
+            browserrowser-status ready';
+            browserStatus.textContent =Status.textContent = '已加载';
+        }
+        
+        '已加载';
+        }
+        
+        // 关闭全局浏览器
+        function // 关闭全局浏览器
+        function closeGlobalBrowser() {
+            document.getElementById('globalBrowser'). closeGlobalBrowser() {
+            document.getElementById('globalclassListBrowser').classList.remove('active');
+        }
+        
+       .remove('active');
+        }
+ // 测试增强检测
+        function        
+        // 测试增强检测
+ testEnhanced        function testEnhancedAutoDetectionAutoDetection(groupId) {
+            enhanced(groupId) {
+            enhancedAutoDetection(groupId);
+        }
+        
+        //AutoDetection(groupId);
+        }
+        
+        // ==============================
+        // 自动化控制函数 ==============================
+        // 自动化控制函数
+       
+        // ==============================
+        
+        // 启动 // ==============================
+        
+        // 启动全自动检测
+全自动检测
+        function        function startAllAutoDetection startAllAutoDetection() {
+() {
+            isAutoDetecting = true;
+            isAutoDetecting = true;
+            showNotification('启动            showNotification('启动全自动全自动检测', 'success');
+           检测', 'success');
+            addLog('启动 addLog('启动全自动检测', 'info');
+            
+            telegramGroups.forEach(group => {
+                if (group.isActive) {
+                    startAutoDetectionFor全自动检测', 'info');
+            
+            telegramGroups.forEach(group => {
+                if (group.isActive) {
+                    startAutoDetectionForGroup(group.id);
+Group(group.id);
+                }
+                }
+            });
+        }
+        
+        // 停止所有检测            });
+        }
+        
+        // 停止所有检测
+        function stopAllAuto
+        function stopAllAutoDetection() {
+            isAutoDetectingDetection() {
+            = false;
+            
+            Object.values(autoDetectionTim isAutoDetecting = false;
+            
+            Object.values(autoDetectionTimers).forEach(timer => {
+                clearIntervalers).forEach(timer => {
+                clearInterval(timer(timer);
+            });
+            
+            auto);
+            });
+            
+            autoDetectionTimers = {};
+           DetectionTimers = {};
+            showNotification('已停止所有 showNotification('已停止所有检测', 'warning');
+           检测', 'warning');
+            addLog addLog('停止所有检测('停止所有检测', 'warning');
+        }
+        
+        // ', 'warning');
+        }
+        
+        // 启动单个群组检测
+       启动单个群组检测
+        function startAutoDetectionForGroup function startAutoDetectionForGroup(groupId(groupId) {
+            const) {
+            const group = group = telegramGroups.find(g => g telegramGroups.find(g => g.id === groupId.id === groupId);
+           );
+            if (!group || !group if (!group || !group.isActive.isActive) return;
+            
+            //) return;
+            
+            // 清除现有定时器
+            if 清除现有定时器
+            if (auto (autoDetectionTimDetectionTimersers[groupId])[groupId]) {
+                {
+                clearInterval(autoDetectionTimers clearInterval(autoDetectionTimers[groupId[groupId]);
+            }
+            
+]);
+            }
+            
+            //            // 立即执行一次
+ 立即执行一次
+            enhancedAutoDetection(groupId            enhancedAutoDetection(groupId);
+            
+            // 设置定时器);
+            
+            // 设置定时器
+            const interval
+            const interval = ( = (group.checkInterval || 30) *group.checkInterval || 30) * 60 * 1000 60 * 1000;
+           ;
+            autoDetectionTimers autoDetectionTimers[groupId[groupId] =] = setInterval(() => setInterval(() => {
+                if ( {
+                if (isAutoisAutoDetecting) {
+                    enhancedAutoDetection(groupId);
+                }
+           Detecting) {
+                    enhancedAutoDetection(groupId);
+                }
+            }, interval);
+            
+            show }, interval);
+            
+            showNotification(`已启动 ${group.name}Notification(`已启动 ${group.name}  的的自动检测`, 'success');
+            addLog(`启动自动检测:自动检测`, 'success');
+            addLog(`启动自动检测: ${group.name}`, ' ${group.name}`, 'info');
+        }
+info');
+        }
+        
+        // 更新当前步骤
+        
+        // 更新当前步骤
+        function        function updateCurrentStep(text) {
+ updateCurrentStep(text) {
+            const            const stepElement = document stepElement = document.getElementById('.getElementById('currentStep');
+            if (stepElement) {
+currentStep');
+            if (stepElement) {
+                const span                const span = step = stepElement.querySelector('span');
+                if (span) {
+                    span.textElement.querySelector('span');
+                if (span) {
+                    span.textContent = text;
+                }
+Content = text;
+                }
+            }
+        }
+        
+                   }
+        }
+        
+        //  // 更新队列显示
+更新队列显示
+        function updateQueueDisplay        function updateQueueDisplay() {
+           () {
+            const container = document const container = document.getElementById('detectionQueue');
+.getElementById('detectionQueue');
+            if            if (!container) return;
+            
+            if (detectionQueue.length === 0) {
+                container (!container) return;
+            
+.innerHTML = '<div class="text-center            if (detectionQueue.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-20">等待 text-muted py-20">等待解析链接...</div>';
+               解析链接...</div>';
+                return;
+ return;
+            }
+            
+            let html            }
+            
+            let html = '';
+            detection = '';
+            detectionQueue.forEach(link => {
+                htmlQueue.forEach(link => {
+                html += `
+                    <div class += `
+                    <div class="link-item ${link.status === '="link-item ${link.status === 'matched'matched' ? 'matched' ? 'matched' : ''}">
+                        : ''}">
+                        <i class="fas fa-link <i class="fas fa-link"></i>
+                       "></i>
+                        <div <div class="link-text">${ class="link-text">${link.url}</div>
+                       link.url}</div>
+                        <span <span class="status-b class="status-badge status-${link.statusadge status-${link.status}}">${link.status}</span">${link.status}</span>
+                    </div>
+               >
+                    </div>
+                `;
+            });
+            
+            `;
+            });
+            
+            container.innerHTML = html container.innerHTML = html;
+       ;
+        }
+        
+        // 更新 }
+        
+        // 更新状态显示状态显示
+        function updateStatusDisplay()
+        function updateStatusDisplay() {
+ {
+            const pendingCount            const pendingCount = detectionQueue.filter(l => l.status === ' = detectionQueue.filter(l => l.status === 'pending').length;
+pending').length;
+            document.getElementById('            document.getElementById('pendingCount').textContent = pendingCountpendingCount').textContent = pendingCount;
+            
+            const;
+            
+            const total = total = detectionQueue.length;
+ detectionQueue            const completed = total -.length;
+            const completed = total - pendingCount;
+            const percent = total >  pendingCount;
+            const percent = total > 0 ? Math.round0 ? Math.round((completed((completed / total) * 100) : / total) * 100) : 0;
+            0;
+            document.getElementById document.getElementById('progressPercent').textContent('progressPercent').textContent = percent + '%';
+        = percent + '%';
+        }
+        
+ }
+        
+        // 页面加载        // 页面加载完成后初始化
+        window.on完成后初始化
+        window.onload =load = function() {
+            console.log function() {
+            console.log('全('全自动系统已准备就绪自动系统已准备就绪');
             setTimeout(() => {
-                showNotification('全自动群组链接检测系统 - 增强版已就绪！', 'info');
-            }, 1000);
+                show');
+            setTimeout(() => {
+                showNotification('全自动群组Notification('全自动群组链接检测系统 -链接检测系统 - 增强 增强版已就绪！',版已就绪！', 'info');
+            },  'info');
+            }, 10001000);
         };
         
-        // 这里添加其他原有函数，确保所有功能完整
-        // 由于代码长度限制，我保留了核心功能，确保系统可以运行
+);
+        };
         
     </script>
+</body    </script>
 </body>
 </html>
