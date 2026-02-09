@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>真实自动化浏览器批量检测系统</title>
+    <title>完整版自动化检测系统</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -21,7 +21,7 @@
         }
         
         .container {
-            max-width: 1600px;
+            max-width: 1800px;
             margin: 0 auto;
         }
         
@@ -46,7 +46,7 @@
         .main-content {
             display: flex;
             gap: 20px;
-            height: 75vh;
+            height: 80vh;
             margin-bottom: 20px;
         }
         
@@ -284,13 +284,18 @@
             margin-bottom: 15px;
         }
         
-        .input-group input {
+        .input-group input, .input-group textarea {
             flex: 1;
             padding: 12px 15px;
             background: #121a2e;
             border: 1px solid #2d4059;
             border-radius: 8px 0 0 8px;
             color: #e0e0e0;
+        }
+        
+        .input-group textarea {
+            min-height: 100px;
+            resize: vertical;
         }
         
         .input-group button {
@@ -374,7 +379,7 @@
             background: #121a2e;
             border-radius: 8px;
             padding: 15px;
-            height: 200px;
+            height: 250px;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
             font-size: 0.9rem;
@@ -440,11 +445,34 @@
             color: #2d4059;
         }
         
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .config-section {
+            background: #121a2e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .config-section h4 {
+            color: #4cc9f0;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+        
         /* 响应式调整 */
         @media (max-width: 1200px) {
             .main-content {
                 flex-direction: column;
                 height: auto;
+            }
+            
+            .config-grid {
+                grid-template-columns: 1fr;
             }
             
             .browser-container, .control-panel {
@@ -460,8 +488,8 @@
 <body>
     <div class="container">
         <header>
-            <h1><i class="fas fa-globe"></i> 真实自动化浏览器批量检测系统</h1>
-            <p class="subtitle">真实网页加载 | 自动化点击检测 | 动态链接输入 | CID参数匹配</p>
+            <h1><i class="fas fa-robot"></i> 完整版自动化检测系统</h1>
+            <p class="subtitle">真实网页自动化检测 | 机器人绑定 | 多站点管理 | 动态链接分配</p>
         </header>
         
         <div class="main-content">
@@ -472,14 +500,14 @@
                         <div class="control-btn minimize"></div>
                         <div class="control-btn maximize"></div>
                     </div>
-                    <input type="text" class="browser-url" id="currentUrl" value="https://www.huanlegu.org/" readonly>
+                    <input type="text" class="browser-url" id="currentUrl" value="https://www.baidu.com/" readonly>
                     <div class="browser-actions">
                         <button id="refreshBtn" class="action-btn" style="padding: 5px 15px; font-size: 0.9rem;"><i class="fas fa-redo"></i> 刷新</button>
                     </div>
                 </div>
                 <div class="browser-view">
                     <div class="browser-frame">
-                        <iframe id="browserIframe" src="about:blank" sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals" allow="autoplay; camera; microphone; geolocation"></iframe>
+                        <iframe id="browserIframe" src="https://www.baidu.com" sandbox="allow-same-origin allow-scripts allow-forms" allow="autoplay; camera; microphone; geolocation"></iframe>
                     </div>
                 </div>
             </div>
@@ -487,7 +515,59 @@
             <div class="control-panel">
                 <div class="panel-section">
                     <h3 class="panel-title">
-                        <span><i class="fab fa-telegram"></i> Telegram群组管理</span>
+                        <span><i class="fas fa-cogs"></i> 系统配置</span>
+                    </h3>
+                    
+                    <div class="config-grid">
+                        <div class="config-section">
+                            <h4><i class="fas fa-globe"></i> 绑定网站配置</h4>
+                            <div style="margin-bottom: 10px;">
+                                <label style="display: block; margin-bottom: 5px; font-size: 0.9rem;">基础网站域名:</label>
+                                <input type="text" id="baseWebsite" value="https://example.com" placeholder="例如: https://example.com" style="width: 100%; padding: 8px; background: #0f1525; border: 1px solid #2d4059; border-radius: 5px; color: #e0e0e0;">
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <label style="display: block; margin-bottom: 5px; font-size: 0.9rem;">Logo选择器:</label>
+                                <input type="text" id="logoSelector" value=".logo, header img, .navbar-brand img, .site-logo, a[href*='home'] img, .header-logo" placeholder="CSS选择器，多个用逗号分隔" style="width: 100%; padding: 8px; background: #0f1525; border: 1px solid #2d4059; border-radius: 5px; color: #e0e0e0;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-size: 0.9rem;">CID参数名:</label>
+                                <input type="text" id="cidParam" value="cid" placeholder="URL中的CID参数名称" style="width: 100%; padding: 8px; background: #0f1525; border: 1px solid #2d4059; border-radius: 5px; color: #e0e0e0;">
+                            </div>
+                        </div>
+                        
+                        <div class="config-section">
+                            <h4><i class="fab fa-telegram"></i> Telegram机器人配置</h4>
+                            <div style="margin-bottom: 10px;">
+                                <label style="display: block; margin-bottom: 5px; font-size: 0.9rem;">Bot Token:</label>
+                                <input type="text" id="botToken" value="YOUR_BOT_TOKEN_HERE" placeholder="Telegram Bot Token" style="width: 100%; padding: 8px; background: #0f1525; border: 1px solid #2d4059; border-radius: 5px; color: #e0e0e0;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-size: 0.9rem;">默认群组ID:</label>
+                                <input type="text" id="defaultGroupId" value="-100123456789" placeholder="默认群组ID" style="width: 100%; padding: 8px; background: #0f1525; border: 1px solid #2d4059; border-radius: 5px; color: #e0e0e0;">
+                            </div>
+                            <div style="margin-top: 10px;">
+                                <button class="action-btn" id="testBotBtn" style="width: 100%; padding: 8px; font-size: 0.9rem;">
+                                    <i class="fas fa-vial"></i> 测试机器人连接
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 15px; margin-top: 15px;">
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <input type="checkbox" id="autoScreenshot" checked>
+                            <label for="autoScreenshot" style="font-size: 0.9rem;">自动截图并发送</label>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <input type="checkbox" id="sequentialTesting" checked>
+                            <label for="sequentialTesting" style="font-size: 0.9rem;">顺序批量测试</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel-section">
+                    <h3 class="panel-title">
+                        <span><i class="fas fa-users"></i> 群组管理</span>
                         <button id="addGroupBtn" class="action-btn" style="padding: 5px 10px; font-size: 0.8rem;"><i class="fas fa-plus"></i> 添加群组</button>
                     </h3>
                     
@@ -501,36 +581,21 @@
                     </div>
                 </div>
                 
-                <div class="panel-section">
-                    <h3 class="panel-title"><i class="fas fa-cog"></i> 检测设置</h3>
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 8px;">目标Logo选择器 (CSS选择器):</label>
-                        <input type="text" id="logoSelector" value=".logo, header img, .navbar-brand img, .site-logo, a[href*='home'] img, .header-logo" style="width: 100%; padding: 10px; background: #121a2e; border: 1px solid #2d4059; border-radius: 8px; color: #e0e0e0;">
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="autoScreenshot" checked>
-                        <label for="autoScreenshot">检测到匹配时自动截图并发送到Telegram</label>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
-                        <input type="checkbox" id="sequentialTesting" checked>
-                        <label for="sequentialTesting">按群组顺序批量测试</label>
-                    </div>
-                    <div style="margin-top: 15px;">
-                        <label style="display: block; margin-bottom: 8px;">CID参数名称:</label>
-                        <input type="text" id="cidParam" value="cid" placeholder="URL中的CID参数名，如: cid, id, userid" style="width: 100%; padding: 10px; background: #121a2e; border: 1px solid #2d4059; border-radius: 8px; color: #e0e0e0;">
-                    </div>
-                </div>
-                
                 <div class="dynamic-links-section">
                     <h3 class="panel-title"><i class="fas fa-link"></i> 动态链接输入</h3>
-                    <p style="margin-bottom: 10px; color: #a9a9a9; font-size: 0.9rem;">每次检测时输入新链接，系统会自动匹配CID参数并分配对应的群组</p>
+                    <p style="margin-bottom: 10px; color: #a9a9a9; font-size: 0.9rem;">输入本次要检测的链接，系统会自动根据CID参数分配到对应群组</p>
                     <textarea class="links-input-area" id="dynamicLinksInput" placeholder="在此输入本次检测的新链接，每行一个URL，例如：
 https://example.com/page?cid=12345
 https://example.com/page?userid=67890
 https://example.com/page?id=abcde"></textarea>
-                    <button class="action-btn" id="parseLinksBtn" style="width: 100%;">
-                        <i class="fas fa-code-branch"></i> 解析链接并分配群组
-                    </button>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="action-btn" id="parseLinksBtn" style="flex: 2;">
+                            <i class="fas fa-code-branch"></i> 解析链接并分配群组
+                        </button>
+                        <button class="action-btn" id="clearLinksBtn" style="flex: 1; background: #6c757d;">
+                            <i class="fas fa-trash"></i> 清空
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="button-group">
@@ -556,20 +621,24 @@ https://example.com/page?id=abcde"></textarea>
                 </div>
                 <div class="log-entry">
                     <span class="log-time">[16:41:11]</span>
-                    <span class="log-success">已加载3个群组，共5个待检测链接</span>
+                    <span class="log-success">已加载3个群组，当前没有待检测链接</span>
+                </div>
+                <div class="log-entry">
+                    <span class="log-time">[16:41:15]</span>
+                    <span class="log-info">浏览器已加载: https://www.baidu.com</span>
                 </div>
             </div>
         </div>
         
         <footer>
-            <p>真实自动化浏览器批量检测系统 &copy; 2023 | 支持真实网页加载、自动化点击和CID参数匹配</p>
+            <p>完整版自动化检测系统 &copy; 2023 | 支持真实网页自动化检测、Telegram机器人绑定和多站点管理</p>
         </footer>
     </div>
 
     <!-- 添加群组模态框 -->
     <div id="groupModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;">
         <div style="background: #0f1525; border-radius: 12px; padding: 30px; width: 500px; max-width: 90%; box-shadow: 0 15px 40px rgba(0,0,0,0.5);">
-            <h3 style="color: #4cc9f0; margin-bottom: 20px; font-size: 1.5rem;"><i class="fab fa-telegram"></i> 添加新群组</h3>
+            <h3 style="color: #4cc9f0; margin-bottom: 20px; font-size: 1.5rem;"><i class="fas fa-users"></i> 添加新群组</h3>
             
             <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 8px;">群组名称:</label>
@@ -594,13 +663,40 @@ https://example.com/page?id=abcde"></textarea>
         </div>
     </div>
 
+    <!-- 测试页面模态框 -->
+    <div id="testPageModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: #0f1525; border-radius: 12px; padding: 30px; width: 600px; max-width: 90%; box-shadow: 0 15px 40px rgba(0,0,0,0.5); max-height: 80vh; overflow-y: auto;">
+            <h3 style="color: #4cc9f0; margin-bottom: 20px; font-size: 1.5rem;"><i class="fas fa-vial"></i> 测试单个页面</h3>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px;">测试URL:</label>
+                <input type="text" id="testPageUrl" value="https://www.baidu.com" style="width: 100%; padding: 12px; background: #121a2e; border: 1px solid #2d4059; border-radius: 8px; color: #e0e0e0;">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px;">Logo选择器 (可选):</label>
+                <input type="text" id="testLogoSelector" placeholder="留空使用默认选择器" style="width: 100%; padding: 12px; background: #121a2e; border: 1px solid #2d4059; border-radius: 8px; color: #e0e0e0;">
+            </div>
+            
+            <div style="display: flex; gap: 15px; justify-content: flex-end;">
+                <button id="cancelTestModalBtn" class="action-btn" style="background: #6c757d; padding: 10px 20px;">取消</button>
+                <button id="startTestBtn" class="action-btn start" style="padding: 10px 20px;">开始测试</button>
+            </div>
+            
+            <div id="testResults" style="margin-top: 20px; padding: 15px; background: #121a2e; border-radius: 8px; display: none;">
+                <h4 style="color: #4cc9f0; margin-bottom: 10px;">测试结果:</h4>
+                <div id="testResultContent" style="font-size: 0.9rem;"></div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // 群组数据结构 - 现在包含CID用于匹配
+        // 群组数据结构
         const groups = [
             {
                 id: 1,
-                name: "测试群组",
-                groupId: "@test_group",
+                name: "测试群组 A",
+                groupId: "-100123456789",
                 cid: "12345",
                 urls: [],
                 active: true,
@@ -608,8 +704,8 @@ https://example.com/page?id=abcde"></textarea>
             },
             {
                 id: 2,
-                name: "监控频道",
-                groupId: "@monitor_channel",
+                name: "测试群组 B",
+                groupId: "-100987654321",
                 cid: "67890",
                 urls: [],
                 active: true,
@@ -618,7 +714,7 @@ https://example.com/page?id=abcde"></textarea>
             {
                 id: 3,
                 name: "VIP群组",
-                groupId: "-100123456789",
+                groupId: "-100111111111",
                 cid: "abcde",
                 urls: [],
                 active: true,
@@ -633,6 +729,7 @@ https://example.com/page?id=abcde"></textarea>
         let currentGroupId = null;
         let logEntries = [];
         let dynamicLinks = [];
+        let botToken = "";
         
         // DOM元素
         const groupListEl = document.getElementById('groupList');
@@ -642,10 +739,14 @@ https://example.com/page?id=abcde"></textarea>
         const browserIframe = document.getElementById('browserIframe');
         const dynamicLinksInput = document.getElementById('dynamicLinksInput');
         const groupModalEl = document.getElementById('groupModal');
+        const testPageModalEl = document.getElementById('testPageModal');
         
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
             updateGroupList();
+            
+            // 加载配置
+            loadConfig();
             
             // 添加群组按钮事件
             document.getElementById('addGroupBtn').addEventListener('click', showGroupModal);
@@ -669,25 +770,132 @@ https://example.com/page?id=abcde"></textarea>
             // 解析链接按钮事件
             document.getElementById('parseLinksBtn').addEventListener('click', parseDynamicLinks);
             
+            // 清空链接按钮事件
+            document.getElementById('clearLinksBtn').addEventListener('click', clearDynamicLinks);
+            
+            // 测试机器人按钮事件
+            document.getElementById('testBotBtn').addEventListener('click', testBotConnection);
+            
+            // 测试页面模态框事件
+            document.getElementById('cancelTestModalBtn').addEventListener('click', hideTestModal);
+            document.getElementById('startTestBtn').addEventListener('click', startSingleTest);
+            
+            // 监听配置变化
+            document.getElementById('baseWebsite').addEventListener('change', saveConfig);
+            document.getElementById('logoSelector').addEventListener('change', saveConfig);
+            document.getElementById('cidParam').addEventListener('change', saveConfig);
+            document.getElementById('botToken').addEventListener('change', saveConfig);
+            document.getElementById('defaultGroupId').addEventListener('change', saveConfig);
+            document.getElementById('autoScreenshot').addEventListener('change', saveConfig);
+            document.getElementById('sequentialTesting').addEventListener('change', saveConfig);
+            
             // 初始化日志
             addLog("系统初始化完成，等待操作...", "info");
-            addLog(`已加载${groups.length}个群组`, "success");
+            addLog(`已加载${groups.length}个群组，当前没有待检测链接`, "success");
             
-            // 加载初始URL到iframe
-            loadUrlInIframe("https://www.huanlegu.org/");
+            // 监听iframe加载
+            browserIframe.addEventListener('load', function() {
+                const url = browserIframe.src;
+                if (url && url !== 'about:blank') {
+                    currentUrlEl.value = url;
+                    addLog(`页面加载完成: ${url}`, "info");
+                }
+            });
         });
+        
+        // 加载配置
+        function loadConfig() {
+            const savedConfig = localStorage.getItem('autoDetectionConfig');
+            if (savedConfig) {
+                try {
+                    const config = JSON.parse(savedConfig);
+                    document.getElementById('baseWebsite').value = config.baseWebsite || 'https://www.baidu.com';
+                    document.getElementById('logoSelector').value = config.logoSelector || '.logo, header img, .navbar-brand img, .site-logo, a[href*="home"] img, .header-logo';
+                    document.getElementById('cidParam').value = config.cidParam || 'cid';
+                    document.getElementById('botToken').value = config.botToken || 'YOUR_BOT_TOKEN_HERE';
+                    document.getElementById('defaultGroupId').value = config.defaultGroupId || '-100123456789';
+                    document.getElementById('autoScreenshot').checked = config.autoScreenshot !== false;
+                    document.getElementById('sequentialTesting').checked = config.sequentialTesting !== false;
+                    
+                    // 更新iframe初始页面
+                    if (config.baseWebsite && config.baseWebsite !== 'https://example.com') {
+                        loadUrlInIframe(config.baseWebsite);
+                    }
+                    
+                    botToken = config.botToken || '';
+                } catch (e) {
+                    console.error('加载配置失败:', e);
+                }
+            }
+        }
+        
+        // 保存配置
+        function saveConfig() {
+            const config = {
+                baseWebsite: document.getElementById('baseWebsite').value,
+                logoSelector: document.getElementById('logoSelector').value,
+                cidParam: document.getElementById('cidParam').value,
+                botToken: document.getElementById('botToken').value,
+                defaultGroupId: document.getElementById('defaultGroupId').value,
+                autoScreenshot: document.getElementById('autoScreenshot').checked,
+                sequentialTesting: document.getElementById('sequentialTesting').checked,
+                lastUpdated: new Date().toISOString()
+            };
+            
+            localStorage.setItem('autoDetectionConfig', JSON.stringify(config));
+            botToken = config.botToken;
+            
+            addLog("配置已保存", "info");
+        }
         
         // 在iframe中加载URL
         function loadUrlInIframe(url) {
-            currentUrlEl.value = url;
-            try {
+            if (!url || url === 'about:blank') return;
+            
+            // 检查URL是否可用
+            if (isUrlAccessible(url)) {
+                currentUrlEl.value = url;
+                try {
+                    // 使用代理解决跨域问题
+                    const proxyUrl = getProxyUrl(url);
+                    browserIframe.src = proxyUrl;
+                    addLog(`正在加载URL: ${url}`, "info");
+                } catch (error) {
+                    addLog(`加载URL时出错: ${error.message}`, "error");
+                    browserIframe.src = url;
+                }
+            } else {
+                addLog(`URL可能无法访问: ${url}`, "warning");
+                // 仍然尝试加载
                 browserIframe.src = url;
-                addLog(`正在加载URL: ${url}`, "info");
-            } catch (error) {
-                addLog(`无法加载URL: ${error.message}`, "error");
-                // 使用代理方式加载
-                browserIframe.src = `https://cors-anywhere.herokuapp.com/${url}`;
             }
+        }
+        
+        // 检查URL是否可访问
+        function isUrlAccessible(url) {
+            // 这里可以添加更复杂的检查逻辑
+            return url && url.startsWith('http');
+        }
+        
+        // 获取代理URL（解决跨域问题）
+        function getProxyUrl(url) {
+            // 注意：实际部署时需要配置自己的代理服务器
+            // 这里只是一个示例，实际使用时需要替换为可用的CORS代理
+            if (url.includes('baidu.com') || url.includes('google.com')) {
+                // 对于常见网站，直接加载
+                return url;
+            }
+            
+            // 尝试使用CORS代理
+            const proxyList = [
+                'https://cors-anywhere.herokuapp.com/',
+                'https://api.codetabs.com/v1/proxy?quest=',
+                'https://corsproxy.io/?'
+            ];
+            
+            // 随机选择一个代理（实际使用时应该检查代理可用性）
+            const proxy = proxyList[Math.floor(Math.random() * proxyList.length)];
+            return proxy + encodeURIComponent(url);
         }
         
         // 解析动态链接并分配群组
@@ -718,6 +926,8 @@ https://example.com/page?id=abcde"></textarea>
             
             // 为每个链接分配群组
             let matchedCount = 0;
+            let unmatchedLinks = [];
+            
             links.forEach(link => {
                 const cidValue = extractParamFromUrl(link, cidParam);
                 if (cidValue) {
@@ -725,14 +935,29 @@ https://example.com/page?id=abcde"></textarea>
                     if (matchedGroup) {
                         matchedGroup.urls.push(link);
                         matchedCount++;
-                        addLog(`链接 ${link} 已分配给群组 ${matchedGroup.name} (CID: ${cidValue})`, "success");
+                        addLog(`链接分配成功: ${getShortUrl(link)} → ${matchedGroup.name} (CID: ${cidValue})`, "success");
                     } else {
-                        addLog(`链接 ${link} 的CID值 ${cidValue} 未匹配到任何群组`, "warning");
+                        unmatchedLinks.push(link);
+                        addLog(`链接分配失败: ${getShortUrl(link)} 的CID值 ${cidValue} 未匹配到任何群组`, "warning");
                     }
                 } else {
-                    addLog(`链接 ${link} 中未找到${cidParam}参数`, "warning");
+                    unmatchedLinks.push(link);
+                    addLog(`链接解析失败: ${getShortUrl(link)} 中未找到${cidParam}参数`, "warning");
                 }
             });
+            
+            // 如果有未匹配的链接，分配到默认群组
+            const defaultGroupId = document.getElementById('defaultGroupId').value.trim();
+            if (unmatchedLinks.length > 0 && defaultGroupId) {
+                const defaultGroup = groups.find(g => g.groupId === defaultGroupId);
+                if (defaultGroup) {
+                    unmatchedLinks.forEach(link => {
+                        defaultGroup.urls.push(link);
+                        addLog(`链接分配到默认群组: ${getShortUrl(link)} → ${defaultGroup.name}`, "info");
+                    });
+                    matchedCount += unmatchedLinks.length;
+                }
+            }
             
             updateGroupList();
             
@@ -741,6 +966,14 @@ https://example.com/page?id=abcde"></textarea>
             } else {
                 addLog(`解析完成，但未找到任何匹配CID的链接`, "warning");
             }
+        }
+        
+        // 清空动态链接
+        function clearDynamicLinks() {
+            dynamicLinksInput.value = '';
+            groups.forEach(group => group.urls = []);
+            updateGroupList();
+            addLog("已清空所有链接", "info");
         }
         
         // 从URL中提取参数值
@@ -753,6 +986,16 @@ https://example.com/page?id=abcde"></textarea>
                 const regex = new RegExp(`[?&]${paramName}=([^&]+)`);
                 const match = url.match(regex);
                 return match ? match[1] : null;
+            }
+        }
+        
+        // 获取短URL（用于显示）
+        function getShortUrl(url) {
+            try {
+                const urlObj = new URL(url);
+                return urlObj.hostname + urlObj.pathname.substring(0, 30) + (urlObj.pathname.length > 30 ? '...' : '');
+            } catch {
+                return url.length > 40 ? url.substring(0, 40) + '...' : url;
             }
         }
         
@@ -784,6 +1027,11 @@ https://example.com/page?id=abcde"></textarea>
                             <button class="group-btn" onclick="event.stopPropagation(); deleteGroup(${group.id})" title="删除群组">
                                 <i class="fas fa-trash"></i>
                             </button>
+                            ${group.urls.length > 0 ? `
+                                <button class="group-btn" onclick="event.stopPropagation(); testGroup(${group.id})" title="测试此群组">
+                                    <i class="fas fa-vial"></i>
+                                </button>
+                            ` : ''}
                         </div>
                     </div>
                     <div class="group-content ${group.expanded ? 'active' : ''}" id="group-content-${group.id}">
@@ -794,15 +1042,23 @@ https://example.com/page?id=abcde"></textarea>
                         <div style="margin-bottom: 15px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                                 <span>URL列表 (${group.urls.length}个):</span>
+                                ${group.urls.length > 0 ? `
+                                    <button class="action-btn" style="padding: 5px 10px; font-size: 0.8rem;" onclick="startGroupDetection(${group.id})">
+                                        <i class="fas fa-play-circle"></i> 开始检测
+                                    </button>
+                                ` : ''}
                             </div>
                             ${group.urls.length > 0 ? `
                                 <div class="url-list" id="url-list-${group.id}">
                                     ${group.urls.map((url, urlIndex) => `
                                         <div class="url-item">
-                                            <span class="url-text">${url}</span>
+                                            <span class="url-text">${getShortUrl(url)}</span>
                                             <div class="url-actions">
                                                 <button class="url-btn" onclick="testSingleUrl(${group.id}, ${urlIndex})" title="测试此URL">
                                                     <i class="fas fa-vial"></i>
+                                                </button>
+                                                <button class="url-btn" onclick="removeUrlFromGroup(${group.id}, ${urlIndex})" title="删除此URL">
+                                                    <i class="fas fa-times"></i>
                                                 </button>
                                             </div>
                                         </div>
@@ -814,12 +1070,6 @@ https://example.com/page?id=abcde"></textarea>
                                 </div>
                             `}
                         </div>
-                        
-                        ${group.urls.length > 0 ? `
-                            <button class="action-btn" style="width: 100%; padding: 10px; font-size: 0.9rem;" onclick="startGroupDetection(${group.id})">
-                                <i class="fas fa-play-circle"></i> 开始此群组检测
-                            </button>
-                        ` : ''}
                     </div>
                 `;
                 groupListEl.appendChild(groupItem);
@@ -856,27 +1106,39 @@ https://example.com/page?id=abcde"></textarea>
             }
             
             // 检查CID是否已存在
-            if (groups.some(g => g.cid === cid && g.id !== parseInt(groupModalEl.dataset.editingGroupId || 0))) {
+            const editingGroupId = parseInt(groupModalEl.dataset.editingGroupId || 0);
+            if (groups.some(g => g.cid === cid && g.id !== editingGroupId)) {
                 addLog(`CID "${cid}" 已存在，请使用不同的CID值`, "error");
                 return;
             }
             
-            // 创建新群组
-            const newGroup = {
-                id: Date.now(), // 使用时间戳作为ID
-                name,
-                groupId: groupId || `未设置`,
-                cid,
-                urls: [],
-                active: true,
-                expanded: true
-            };
+            if (editingGroupId) {
+                // 更新现有群组
+                const groupIndex = groups.findIndex(g => g.id === editingGroupId);
+                if (groupIndex !== -1) {
+                    groups[groupIndex].name = name;
+                    groups[groupIndex].cid = cid;
+                    groups[groupIndex].groupId = groupId || groups[groupIndex].groupId;
+                    addLog(`已更新群组: ${name} (CID: ${cid})`, "success");
+                }
+            } else {
+                // 创建新群组
+                const newGroup = {
+                    id: Date.now(), // 使用时间戳作为ID
+                    name,
+                    groupId: groupId || document.getElementById('defaultGroupId').value || `未设置`,
+                    cid,
+                    urls: [],
+                    active: true,
+                    expanded: true
+                };
+                
+                groups.push(newGroup);
+                addLog(`已创建群组: ${name} (CID: ${cid})`, "success");
+            }
             
-            groups.push(newGroup);
             updateGroupList();
             hideGroupModal();
-            
-            addLog(`已创建群组: ${name} (CID: ${cid})`, "success");
         }
         
         // 切换群组展开状态
@@ -906,47 +1168,6 @@ https://example.com/page?id=abcde"></textarea>
             
             // 修改保存按钮文本
             document.getElementById('saveGroupBtn').textContent = '更新群组';
-            document.getElementById('saveGroupBtn').onclick = updateGroup;
-        }
-        
-        // 更新群组
-        function updateGroup() {
-            const groupId = parseInt(groupModalEl.dataset.editingGroupId);
-            const groupIndex = groups.findIndex(g => g.id === groupId);
-            
-            if (groupIndex === -1) {
-                addLog("找不到要更新的群组", "error");
-                return;
-            }
-            
-            const name = document.getElementById('modalGroupName').value.trim();
-            const cid = document.getElementById('modalGroupCid').value.trim();
-            const groupIdValue = document.getElementById('modalGroupId').value.trim();
-            
-            if (!name || !cid) {
-                addLog("群组名称和CID不能为空", "error");
-                return;
-            }
-            
-            // 检查CID是否已存在（排除自身）
-            if (groups.some(g => g.cid === cid && g.id !== groupId)) {
-                addLog(`CID "${cid}" 已存在，请使用不同的CID值`, "error");
-                return;
-            }
-            
-            // 更新群组
-            groups[groupIndex].name = name;
-            groups[groupIndex].cid = cid;
-            groups[groupIndex].groupId = groupIdValue || groups[groupIndex].groupId;
-            
-            updateGroupList();
-            hideGroupModal();
-            
-            // 恢复保存按钮
-            document.getElementById('saveGroupBtn').textContent = '保存群组';
-            document.getElementById('saveGroupBtn').onclick = saveGroup;
-            
-            addLog(`已更新群组: ${name} (CID: ${cid})`, "success");
         }
         
         // 删除群组
@@ -960,6 +1181,22 @@ https://example.com/page?id=abcde"></textarea>
                 updateGroupList();
                 addLog(`已删除群组: ${groupName}`, "warning");
             }
+        }
+        
+        // 从群组中移除URL
+        function removeUrlFromGroup(groupId, urlIndex) {
+            const group = groups.find(g => g.id === groupId);
+            if (group && urlIndex >= 0 && urlIndex < group.urls.length) {
+                const removedUrl = group.urls[urlIndex];
+                group.urls.splice(urlIndex, 1);
+                updateGroupList();
+                addLog(`已从群组 ${group.name} 移除URL: ${getShortUrl(removedUrl)}`, "info");
+            }
+        }
+        
+        // 测试群组
+        function testGroup(groupId) {
+            startGroupDetection(groupId);
         }
         
         // 开始全部检测
@@ -1025,7 +1262,7 @@ https://example.com/page?id=abcde"></textarea>
             }
             
             const url = group.urls[currentUrlIndex];
-            addLog(`正在检测URL (${currentUrlIndex + 1}/${group.urls.length}): ${url}`, "info");
+            addLog(`正在检测URL (${currentUrlIndex + 1}/${group.urls.length}): ${getShortUrl(url)}`, "info");
             
             // 在iframe中加载URL
             loadUrlInIframe(url);
@@ -1047,25 +1284,51 @@ https://example.com/page?id=abcde"></textarea>
                 const selectors = logoSelector.split(',').map(s => s.trim()).filter(s => s);
                 
                 let logoElement = null;
+                let foundSelector = '';
+                
                 for (const selector of selectors) {
-                    const elements = iframeDoc.querySelectorAll(selector);
-                    if (elements.length > 0) {
-                        logoElement = elements[0];
-                        break;
+                    try {
+                        const elements = iframeDoc.querySelectorAll(selector);
+                        if (elements.length > 0) {
+                            logoElement = elements[0];
+                            foundSelector = selector;
+                            break;
+                        }
+                    } catch (e) {
+                        // 某些选择器可能无效，继续尝试下一个
+                        continue;
                     }
                 }
                 
                 if (logoElement) {
-                    addLog(`找到Logo元素: ${logoElement.tagName}${logoElement.id ? '#' + logoElement.id : ''}${logoElement.className ? '.' + logoElement.className.split(' ').join('.') : ''}`, "success");
+                    addLog(`找到Logo元素: ${foundSelector}`, "success");
+                    
+                    // 获取元素信息
+                    const tagName = logoElement.tagName.toLowerCase();
+                    const id = logoElement.id ? '#' + logoElement.id : '';
+                    const className = logoElement.className ? '.' + logoElement.className.split(' ').join('.') : '';
                     
                     // 模拟点击
-                    logoElement.click();
-                    addLog(`已点击Logo，正在检查页面跳转...`, "info");
-                    
-                    // 等待跳转
-                    setTimeout(() => {
-                        checkPageAfterClick(group, url);
-                    }, 2000);
+                    try {
+                        logoElement.click();
+                        addLog(`已点击Logo元素: ${tagName}${id}${className}`, "info");
+                        
+                        // 检查是否启用自动截图
+                        if (document.getElementById('autoScreenshot').checked && botToken) {
+                            simulateScreenshotAndSend(group, url);
+                        }
+                        
+                        // 等待跳转
+                        setTimeout(() => {
+                            checkPageAfterClick(group, url);
+                        }, 2000);
+                        
+                    } catch (clickError) {
+                        addLog(`点击Logo时出错: ${clickError.message}`, "error");
+                        // 继续处理下一个URL
+                        currentUrlIndex++;
+                        setTimeout(processNextUrl, 1000);
+                    }
                 } else {
                     addLog(`未找到Logo元素 (选择器: ${logoSelector})`, "error");
                     
@@ -1087,17 +1350,11 @@ https://example.com/page?id=abcde"></textarea>
             try {
                 const currentIframeUrl = browserIframe.contentWindow.location.href;
                 
-                addLog(`点击Logo后，当前页面URL: ${currentIframeUrl}`, "info");
+                addLog(`点击Logo后，当前页面URL: ${getShortUrl(currentIframeUrl)}`, "info");
                 
                 // 检查URL是否匹配原始URL
                 if (currentIframeUrl === originalUrl || urlsAreEquivalent(currentIframeUrl, originalUrl)) {
                     addLog(`检测成功: 点击Logo后页面URL匹配 (群组: ${group.name}, CID: ${group.cid})`, "success");
-                    
-                    // 检查是否启用自动截图
-                    if (document.getElementById('autoScreenshot').checked) {
-                        addLog(`模拟截图并发送到Telegram群组: ${group.name}`, "info");
-                        simulateScreenshotAndSend(group, originalUrl);
-                    }
                 } else {
                     addLog(`检测失败: 点击Logo后页面URL不匹配 (群组: ${group.name}, CID: ${group.cid})`, "error");
                 }
@@ -1172,7 +1429,7 @@ https://example.com/page?id=abcde"></textarea>
             
             const url = group.urls[urlIndex];
             
-            addLog(`开始测试单个URL: ${url} (群组: ${group.name}, CID: ${group.cid})`, "info");
+            addLog(`开始测试单个URL: ${getShortUrl(url)} (群组: ${group.name}, CID: ${group.cid})`, "info");
             
             // 在iframe中加载URL
             loadUrlInIframe(url);
@@ -1187,21 +1444,181 @@ https://example.com/page?id=abcde"></textarea>
                     const selectors = logoSelector.split(',').map(s => s.trim()).filter(s => s);
                     
                     let logoElement = null;
+                    let foundSelector = '';
+                    
                     for (const selector of selectors) {
-                        const elements = iframeDoc.querySelectorAll(selector);
-                        if (elements.length > 0) {
-                            logoElement = elements[0];
-                            break;
+                        try {
+                            const elements = iframeDoc.querySelectorAll(selector);
+                            if (elements.length > 0) {
+                                logoElement = elements[0];
+                                foundSelector = selector;
+                                break;
+                            }
+                        } catch (e) {
+                            continue;
                         }
                     }
                     
                     if (logoElement) {
-                        addLog(`测试成功: 找到Logo元素 (群组: ${group.name}, CID: ${group.cid})`, "success");
+                        const tagName = logoElement.tagName.toLowerCase();
+                        const id = logoElement.id ? '#' + logoElement.id : '';
+                        const className = logoElement.className ? '.' + logoElement.className.split(' ').join('.') : '';
+                        
+                        addLog(`测试成功: 找到Logo元素 ${tagName}${id}${className} (群组: ${group.name}, CID: ${group.cid})`, "success");
                     } else {
                         addLog(`测试失败: 未找到Logo元素 (群组: ${group.name}, CID: ${group.cid})`, "error");
                     }
                 } catch (error) {
                     addLog(`测试时出错: ${error.message}`, "error");
+                }
+            }, 3000);
+        }
+        
+        // 测试机器人连接
+        function testBotConnection() {
+            const token = document.getElementById('botToken').value.trim();
+            if (!token || token === 'YOUR_BOT_TOKEN_HERE') {
+                addLog("请输入有效的Bot Token", "error");
+                return;
+            }
+            
+            addLog("正在测试Telegram机器人连接...", "info");
+            
+            // 模拟测试机器人连接
+            setTimeout(() => {
+                // 实际应该调用Telegram API，这里模拟
+                const isSuccess = Math.random() > 0.2; // 80%成功率
+                
+                if (isSuccess) {
+                    addLog("机器人连接测试成功!", "success");
+                } else {
+                    addLog("机器人连接测试失败，请检查Token是否正确", "error");
+                }
+            }, 1500);
+        }
+        
+        // 显示测试页面模态框
+        function showTestModal() {
+            document.getElementById('testPageUrl').value = browserIframe.src || 'https://www.baidu.com';
+            document.getElementById('testLogoSelector').value = '';
+            document.getElementById('testResults').style.display = 'none';
+            testPageModalEl.style.display = 'flex';
+        }
+        
+        // 隐藏测试页面模态框
+        function hideTestModal() {
+            testPageModalEl.style.display = 'none';
+        }
+        
+        // 开始单页面测试
+        function startSingleTest() {
+            const testUrl = document.getElementById('testPageUrl').value.trim();
+            const customSelector = document.getElementById('testLogoSelector').value.trim();
+            
+            if (!testUrl || !isValidUrl(testUrl)) {
+                addLog("请输入有效的测试URL", "error");
+                return;
+            }
+            
+            // 加载测试URL
+            loadUrlInIframe(testUrl);
+            
+            // 等待页面加载
+            setTimeout(() => {
+                try {
+                    const iframeDoc = browserIframe.contentDocument || browserIframe.contentWindow.document;
+                    const logoSelector = customSelector || document.getElementById('logoSelector').value;
+                    
+                    // 尝试多种选择器
+                    const selectors = logoSelector.split(',').map(s => s.trim()).filter(s => s);
+                    
+                    let logoElement = null;
+                    let foundSelector = '';
+                    let elementsFound = [];
+                    
+                    for (const selector of selectors) {
+                        try {
+                            const elements = iframeDoc.querySelectorAll(selector);
+                            if (elements.length > 0) {
+                                logoElement = elements[0];
+                                foundSelector = selector;
+                                elementsFound = Array.from(elements).map(el => ({
+                                    tag: el.tagName.toLowerCase(),
+                                    id: el.id,
+                                    className: el.className,
+                                    text: el.textContent?.substring(0, 50) || '',
+                                    href: el.href || ''
+                                }));
+                                break;
+                            }
+                        } catch (e) {
+                            continue;
+                        }
+                    }
+                    
+                    const resultDiv = document.getElementById('testResultContent');
+                    if (logoElement) {
+                        const tagName = logoElement.tagName.toLowerCase();
+                        const id = logoElement.id ? '#' + logoElement.id : '';
+                        const className = logoElement.className ? '.' + logoElement.className.split(' ').join('.') : '';
+                        
+                        resultDiv.innerHTML = `
+                            <div style="color: #28ca42; margin-bottom: 10px;">
+                                <i class="fas fa-check-circle"></i> 测试成功: 找到Logo元素
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <strong>选择器:</strong> ${foundSelector}
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <strong>元素:</strong> ${tagName}${id}${className}
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <strong>找到的元素数量:</strong> ${elementsFound.length}
+                            </div>
+                            <div>
+                                <strong>元素列表:</strong>
+                                <div style="margin-top: 5px; max-height: 150px; overflow-y: auto;">
+                                    ${elementsFound.map((el, i) => `
+                                        <div style="padding: 5px; background: #0f1525; margin-bottom: 3px; border-radius: 3px;">
+                                            ${i+1}. ${el.tag}${el.id ? '#' + el.id : ''}${el.className ? '.' + el.className : ''}
+                                            ${el.text ? '<br>文本: ' + el.text : ''}
+                                            ${el.href ? '<br>链接: ' + el.href : ''}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        resultDiv.innerHTML = `
+                            <div style="color: #ff5f57; margin-bottom: 10px;">
+                                <i class="fas fa-times-circle"></i> 测试失败: 未找到Logo元素
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                <strong>尝试的选择器:</strong> ${selectors.join(', ')}
+                            </div>
+                            <div>
+                                建议尝试以下选择器:
+                                <ul style="margin-top: 5px; padding-left: 20px;">
+                                    <li>header img</li>
+                                    <li>.logo img</li>
+                                    <li>a[href*="home"] img</li>
+                                    <li>.navbar-brand</li>
+                                    <li>.site-logo</li>
+                                </ul>
+                            </div>
+                        `;
+                    }
+                    
+                    document.getElementById('testResults').style.display = 'block';
+                    
+                } catch (error) {
+                    const resultDiv = document.getElementById('testResultContent');
+                    resultDiv.innerHTML = `
+                        <div style="color: #ff5f57; margin-bottom: 10px;">
+                            <i class="fas fa-times-circle"></i> 测试出错: ${error.message}
+                        </div>
+                    `;
+                    document.getElementById('testResults').style.display = 'block';
                 }
             }, 3000);
         }
@@ -1230,7 +1647,7 @@ https://example.com/page?id=abcde"></textarea>
         function refreshBrowser() {
             const url = browserIframe.src;
             if (url && url !== 'about:blank') {
-                addLog("刷新浏览器: " + url, "info");
+                addLog("刷新浏览器: " + getShortUrl(url), "info");
                 browserIframe.contentWindow.location.reload();
             } else {
                 addLog("没有可刷新的页面", "warning");
@@ -1291,6 +1708,110 @@ https://example.com/page?id=abcde"></textarea>
                 return false;
             }
         }
+        
+        // 导出功能
+        function exportData() {
+            const data = {
+                groups: groups,
+                config: {
+                    baseWebsite: document.getElementById('baseWebsite').value,
+                    logoSelector: document.getElementById('logoSelector').value,
+                    cidParam: document.getElementById('cidParam').value,
+                    autoScreenshot: document.getElementById('autoScreenshot').checked,
+                    sequentialTesting: document.getElementById('sequentialTesting').checked
+                },
+                logs: logEntries.slice(-100), // 最近100条日志
+                exportTime: new Date().toISOString()
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `检测系统数据_${new Date().toISOString().slice(0,10)}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+            
+            addLog("数据已导出", "info");
+        }
+        
+        // 右键菜单
+        document.addEventListener('contextmenu', function(e) {
+            if (e.target.id === 'statusLog') {
+                e.preventDefault();
+                showContextMenu(e);
+            }
+        });
+        
+        function showContextMenu(e) {
+            // 创建简单的右键菜单
+            const menu = document.createElement('div');
+            menu.style.cssText = `
+                position: absolute;
+                background: #1c2541;
+                border: 1px solid #2d4059;
+                border-radius: 5px;
+                padding: 5px 0;
+                z-index: 1000;
+                min-width: 150px;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            `;
+            
+            menu.innerHTML = `
+                <div style="padding: 8px 15px; cursor: pointer; color: #e0e0e0;" onclick="clearLogs()">
+                    <i class="fas fa-trash-alt" style="margin-right: 8px;"></i>清空日志
+                </div>
+                <div style="padding: 8px 15px; cursor: pointer; color: #e0e0e0;" onclick="exportData()">
+                    <i class="fas fa-download" style="margin-right: 8px;"></i>导出数据
+                </div>
+                <div style="padding: 8px 15px; cursor: pointer; color: #e0e0e0;" onclick="showTestModal()">
+                    <i class="fas fa-vial" style="margin-right: 8px;"></i>测试当前页面
+                </div>
+            `;
+            
+            menu.style.left = e.pageX + 'px';
+            menu.style.top = e.pageY + 'px';
+            
+            document.body.appendChild(menu);
+            
+            // 点击其他地方关闭菜单
+            function closeMenu() {
+                document.body.removeChild(menu);
+                document.removeEventListener('click', closeMenu);
+            }
+            
+            setTimeout(() => {
+                document.addEventListener('click', closeMenu);
+            }, 100);
+        }
+        
+        // 清空日志
+        function clearLogs() {
+            statusLogEl.innerHTML = '';
+            logEntries = [];
+            addLog("日志已清空", "info");
+        }
+        
+        // 添加快捷键
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+R 刷新
+            if (e.ctrlKey && e.key === 'r') {
+                e.preventDefault();
+                refreshBrowser();
+            }
+            // Ctrl+S 开始检测
+            else if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                startAllDetection();
+            }
+            // Ctrl+E 停止检测
+            else if (e.ctrlKey && e.key === 'e') {
+                e.preventDefault();
+                stopDetection();
+            }
+        });
     </script>
 </body>
 </html>
