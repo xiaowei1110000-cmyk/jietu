@@ -1011,6 +1011,26 @@
             flex-wrap: wrap;
             margin: 10px 0;
         }
+        
+        /* 安全提示样式 */
+        .security-override {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            padding: 10px 20px;
+            border-radius: 8px;
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .security-override.active {
+            display: flex;
+        }
     </style>
 </head>
 <body>
@@ -1205,6 +1225,9 @@ https://test.com/group?cid=1234&user=test#section
                                 <label>
                                     <input type="checkbox" id="useProxyBrowser" checked> 使用代理浏览器（解决跨域）
                                 </label>
+                                <label>
+                                    <input type="checkbox" id="forceSecurityOverride" checked> 强制忽略安全警告
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -1218,6 +1241,9 @@ https://test.com/group?cid=1234&user=test#section
                         </button>
                         <button class="btn btn-info" onclick="testRealClick()">
                             <i class="fas fa-mouse-pointer"></i> 测试真实点击
+                        </button>
+                        <button class="btn btn-success" onclick="testLinkHandling()">
+                            <i class="fas fa-external-link-alt"></i> 测试链接处理
                         </button>
                     </div>
                     
@@ -1256,8 +1282,8 @@ https://test.com/group?cid=1234&user=test#section
                                     <button class="btn btn-sm btn-success" onclick="testRealWebsite()">
                                         <i class="fas fa-play"></i> 测试网站
                                     </button>
-                                    <button class="btn btn-sm btn-warning" onclick="injectClickScript()">
-                                        <i class="fas fa-mouse-pointer"></i> 注入点击脚本
+                                    <button class="btn btn-sm btn-warning" onclick="injectLinkHandlerScript()">
+                                        <i class="fas fa-external-link-alt"></i> 注入链接处理
                                     </button>
                                     <button class="btn btn-sm btn-info" onclick="captureCurrentPage()">
                                         <i class="fas fa-camera"></i> 截图当前页
@@ -1272,10 +1298,10 @@ https://test.com/group?cid=1234&user=test#section
                                     <div class="spinner"></div>
                                     <p>正在加载页面...</p>
                                 </div>
-                                <!-- 使用代理URL解决跨域 -->
+                                <!-- 修改sandbox属性，添加allow-top-navigation -->
                                 <iframe class="browser-frame" id="globalBrowserFrame" 
-                                        sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-pointer-lock"
-                                        src="https://example.com">
+                                        sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-pointer-lock allow-top-navigation"
+                                        src="about:blank">
                                 </iframe>
                             </div>
                         </div>
@@ -1601,6 +1627,13 @@ https://test.com/group?cid=1234&user=test#section
             </div>
         </div>
         
+        <!-- 安全覆盖提示 -->
+        <div class="security-override" id="securityOverride">
+            <i class="fas fa-exclamation-triangle text-warning"></i>
+            <span>检测到不安全的网站，已强制继续访问</span>
+            <button class="btn btn-sm btn-warning" onclick="closeSecurityOverride()">忽略</button>
+        </div>
+        
         <div class="app-footer">
             <p>© 2024 全自动群组链接检测系统 - 专业版 | 解决跨域限制 + 真实自动化点击 + 完整工作流</p>
         </div>
@@ -1871,7 +1904,8 @@ https://test.com/group?cid=1234&user=test#section
                     lastScreenshot: null,
                     logs: [],
                     showBrowser: false,
-                    useProxy: true  // 默认使用代理
+                    useProxy: true,  // 默认使用代理
+                    forceSecurity: true  // 强制忽略安全警告
                 };
                 
                 telegramGroups.push(newGroup);
@@ -1937,7 +1971,8 @@ https://test.com/group?cid=1234&user=test#section
                     lastScreenshot: null,
                     logs: [],
                     showBrowser: false,
-                    useProxy: true
+                    useProxy: true,
+                    forceSecurity: true
                 },
                 {
                     id: 'group_2_' + Date.now(),
@@ -1960,7 +1995,8 @@ https://test.com/group?cid=1234&user=test#section
                     lastScreenshot: null,
                     logs: [],
                     showBrowser: false,
-                    useProxy: true
+                    useProxy: true,
+                    forceSecurity: true
                 }
             ];
             updateGroupsDisplay();
@@ -2006,6 +2042,7 @@ https://test.com/group?cid=1234&user=test#section
                                 ${group.status === 'sent' ? '<i class="fas fa-paper-plane text-success ml-1"></i>' : ''}
                                 ${hasOCRSuccess ? '<i class="fas fa-eye text-warning ml-1"></i>' : ''}
                                 ${group.useProxy ? '<i class="fas fa-shield-alt text-primary ml-1"></i>' : ''}
+                                ${group.forceSecurity ? '<i class="fas fa-shield-alt text-warning ml-1"></i>' : ''}
                             </div>
                             <div class="d-flex gap-10">
                                 <button class="btn btn-sm btn-warning" onclick="toggleGroupActive('${group.id}')">
@@ -2087,7 +2124,9 @@ https://test.com/group?cid=1234&user=test#section
 
         // 通过代理打开网站（解决跨域）
         function openWebsiteWithProxy(url, groupId = null) {
-            const useProxy = groupId ? telegramGroups.find(g => g.id === groupId)?.useProxy : true;
+            const group = groupId ? telegramGroups.find(g => g.id === groupId) : null;
+            const useProxy = group ? group.useProxy : true;
+            const forceSecurity = group ? group.forceSecurity : document.getElementById('forceSecurityOverride')?.checked;
             
             if (!useProxy || url.includes('about:blank')) {
                 return url; // 不使用代理
@@ -2140,8 +2179,8 @@ https://test.com/group?cid=1234&user=test#section
                     <input type="text" class="browser-url" value="${displayUrl}" readonly>
                     <span class="browser-status loading">加载中...</span>
                     <div class="proxy-controls">
-                        <button class="btn btn-sm btn-primary" onclick="injectClickScriptForGroup('${groupId}')">
-                            <i class="fas fa-mouse-pointer"></i> 注入点击
+                        <button class="btn btn-sm btn-primary" onclick="injectLinkHandlerForGroup('${groupId}')">
+                            <i class="fas fa-external-link-alt"></i> 链接处理
                         </button>
                         <button class="btn btn-sm btn-success" onclick="testOCRForGroup('${groupId}')">
                             <i class="fas fa-eye"></i> OCR识别
@@ -2164,7 +2203,7 @@ https://test.com/group?cid=1234&user=test#section
                     </div>
                     <iframe class="browser-frame" 
                             id="iframe-${groupId}"
-                            sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
+                            sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-top-navigation"
                             src="${proxyUrl}">
                     </iframe>
                 </div>
@@ -2187,10 +2226,13 @@ https://test.com/group?cid=1234&user=test#section
                         status.textContent = '已加载';
                     }
                     
-                    // 注入点击检测脚本
+                    // 注入链接处理脚本
                     setTimeout(() => {
-                        injectClickDetectionScript(groupId);
+                        injectLinkHandlerScriptForGroup(groupId);
                     }, 1000);
+                    
+                    // 显示安全提示
+                    showSecurityOverrideWarning(displayUrl, groupId);
                     
                     showNotification(`网站加载完成: ${displayUrl}`, 'success');
                     addLog(`网站加载完成: ${displayUrl}`, 'success');
@@ -2216,8 +2258,8 @@ https://test.com/group?cid=1234&user=test#section
             }
         }
 
-        // 注入点击检测脚本
-        function injectClickDetectionScript(groupId) {
+        // 注入链接处理脚本（核心修复）
+        function injectLinkHandlerScriptForGroup(groupId) {
             const iframe = document.getElementById(`iframe-${groupId}`);
             if (!iframe) return;
             
@@ -2225,205 +2267,236 @@ https://test.com/group?cid=1234&user=test#section
                 // 使用postMessage通信绕过跨域限制
                 const script = `
                     (function() {
-                        // 接收来自父窗口的消息
-                        window.addEventListener('message', function(event) {
-                            if (event.data.type === 'click_logo') {
-                                autoClickLogo();
+                        // 记录原始window.open
+                        const originalWindowOpen = window.open;
+                        
+                        // 重写window.open
+                        window.open = function(url, target, features) {
+                            console.log('window.open被调用:', url, target);
+                            
+                            // 如果是新窗口，改为在当前窗口打开
+                            if (target === '_blank' || target === '_new' || !target) {
+                                console.log('拦截新窗口打开，改为当前窗口打开:', url);
+                                
+                                // 在当前窗口打开
+                                window.location.href = url;
+                                
+                                // 通知父窗口
+                                window.parent.postMessage({
+                                    type: 'window_open_intercepted',
+                                    url: url,
+                                    originalTarget: target,
+                                    timestamp: new Date().toISOString()
+                                }, '*');
+                                
+                                // 返回一个假的window对象
+                                return {
+                                    closed: false,
+                                    focus: function() {},
+                                    close: function() {},
+                                    location: { href: url }
+                                };
                             }
-                            if (event.data.type === 'find_elements') {
-                                findLogoElements();
+                            
+                            // 否则使用原始方法
+                            return originalWindowOpen.call(window, url, target, features);
+                        };
+                        
+                        // 拦截所有链接点击
+                        document.addEventListener('click', function(e) {
+                            let target = e.target;
+                            
+                            // 向上查找<a>元素
+                            while (target && target.tagName !== 'A') {
+                                target = target.parentElement;
+                                if (!target) break;
                             }
+                            
+                            if (target && target.tagName === 'A' && target.href) {
+                                console.log('链接被点击:', target.href, 'target:', target.target);
+                                
+                                // 如果是新窗口或外部链接
+                                if (target.target === '_blank' || target.target === '_new') {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    
+                                    console.log('拦截链接点击，改为当前窗口打开:', target.href);
+                                    
+                                    // 在当前窗口打开
+                                    window.location.href = target.href;
+                                    
+                                    // 通知父窗口
+                                    window.parent.postMessage({
+                                        type: 'link_intercepted',
+                                        url: target.href,
+                                        originalTarget: target.target,
+                                        timestamp: new Date().toISOString()
+                                    }, '*');
+                                    
+                                    return false;
+                                }
+                            }
+                        }, true);
+                        
+                        // 拦截表单提交
+                        document.addEventListener('submit', function(e) {
+                            const form = e.target;
+                            if (form.target === '_blank') {
+                                e.preventDefault();
+                                form.target = '_self';
+                                
+                                // 通知父窗口
+                                window.parent.postMessage({
+                                    type: 'form_intercepted',
+                                    action: form.action,
+                                    timestamp: new Date().toISOString()
+                                }, '*');
+                                
+                                // 提交表单
+                                setTimeout(() => {
+                                    form.submit();
+                                }, 100);
+                            }
+                        }, true);
+                        
+                        // 处理JavaScript重定向
+                        const originalLocationAssign = window.location.assign;
+                        const originalLocationReplace = window.location.replace;
+                        const originalLocationHref = Object.getOwnPropertyDescriptor(window.location, 'href');
+                        
+                        window.location.assign = function(url) {
+                            console.log('location.assign被调用:', url);
+                            window.parent.postMessage({
+                                type: 'location_assign',
+                                url: url,
+                                timestamp: new Date().toISOString()
+                            }, '*');
+                            originalLocationAssign.call(window.location, url);
+                        };
+                        
+                        window.location.replace = function(url) {
+                            console.log('location.replace被调用:', url);
+                            window.parent.postMessage({
+                                type: 'location_replace',
+                                url: url,
+                                timestamp: new Date().toISOString()
+                            }, '*');
+                            originalLocationReplace.call(window.location, url);
+                        };
+                        
+                        Object.defineProperty(window.location, 'href', {
+                            set: function(url) {
+                                console.log('location.href被设置:', url);
+                                window.parent.postMessage({
+                                    type: 'location_href_set',
+                                    url: url,
+                                    timestamp: new Date().toISOString()
+                                }, '*');
+                                originalLocationHref.set.call(window.location, url);
+                            },
+                            get: originalLocationHref.get
                         });
                         
-                        // 自动点击Logo函数
-                        function autoClickLogo() {
-                            console.log('开始自动点击Logo...');
-                            
-                            // 常见的Logo选择器
-                            const selectors = [
-                                'a[href*="telegram"]',
-                                'a[href*="t.me"]',
-                                '.telegram-link',
-                                '.tg-link',
-                                '[class*="telegram"]',
-                                '[class*="tg-"]',
-                                'button:contains("Telegram")',
-                                'a:contains("Telegram")',
-                                'button:contains("Join")',
-                                'a:contains("Join")',
-                                'button:contains("Group")',
-                                'a:contains("Group")',
-                                'button:contains("Channel")',
-                                'a:contains("Channel")'
-                            ];
-                            
-                            let clicked = false;
-                            
-                            // 尝试每个选择器
-                            selectors.forEach(selector => {
-                                try {
-                                    const elements = document.querySelectorAll(selector);
-                                    if (elements.length > 0) {
-                                        console.log('找到元素:', selector, elements[0]);
-                                        elements[0].click();
-                                        clicked = true;
-                                        console.log('点击成功！');
-                                    }
-                                } catch (e) {
-                                    console.log('选择器失败:', selector, e);
-                                }
-                            });
-                            
-                            // 如果没有找到，尝试点击第一个按钮或链接
-                            if (!clicked) {
-                                const buttons = document.querySelectorAll('button, a.btn, a.button, .btn, .button');
-                                if (buttons.length > 0) {
-                                    buttons[0].click();
-                                    console.log('点击了第一个按钮');
-                                    clicked = true;
-                                }
-                            }
-                            
-                            // 发送结果回父窗口
-                            window.parent.postMessage({
-                                type: 'click_result',
-                                success: clicked
-                            }, '*');
-                            
-                            return clicked;
-                        }
+                        console.log('链接处理脚本已注入成功');
                         
-                        // 查找Logo元素
-                        function findLogoElements() {
-                            const elements = [];
-                            
-                            // 查找所有可能的Logo元素
-                            const selectors = [
-                                'img',
-                                'a',
-                                'button',
-                                '.logo',
-                                '[class*="logo"]',
-                                '[id*="logo"]',
-                                'h1',
-                                'h2',
-                                'h3'
-                            ];
-                            
-                            selectors.forEach(selector => {
-                                try {
-                                    document.querySelectorAll(selector).forEach(el => {
-                                        elements.push({
-                                            tagName: el.tagName,
-                                            className: el.className,
-                                            id: el.id,
-                                            text: el.textContent?.substring(0, 50) || '',
-                                            src: el.src || '',
-                                            href: el.href || '',
-                                            outerHTML: el.outerHTML.substring(0, 200)
-                                        });
-                                    });
-                                } catch (e) {
-                                    console.log('查询失败:', selector, e);
-                                }
-                            });
-                            
-                            // 发送结果回父窗口
-                            window.parent.postMessage({
-                                type: 'elements_found',
-                                elements: elements.slice(0, 20)
-                            }, '*');
-                            
-                            return elements;
-                        }
-                        
-                        // 暴露函数到全局
-                        window.autoClickLogo = autoClickLogo;
-                        window.findLogoElements = findLogoElements;
-                        
-                        console.log('点击检测脚本已注入');
+                        // 发送就绪消息
+                        window.parent.postMessage({
+                            type: 'link_handler_ready',
+                            timestamp: new Date().toISOString()
+                        }, '*');
                     })();
                 `;
                 
                 // 创建一个script元素并注入
                 const scriptElement = document.createElement('script');
                 scriptElement.textContent = script;
-                iframe.contentDocument.head.appendChild(scriptElement);
+                
+                // 等待iframe文档加载完成
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                if (iframeDoc.readyState === 'loading') {
+                    iframeDoc.addEventListener('DOMContentLoaded', function() {
+                        iframeDoc.head.appendChild(scriptElement);
+                        console.log('链接处理脚本已注入');
+                        addLog(`链接处理脚本已注入: ${groupId}`, 'success');
+                    });
+                } else {
+                    iframeDoc.head.appendChild(scriptElement);
+                    console.log('链接处理脚本已注入');
+                    addLog(`链接处理脚本已注入: ${groupId}`, 'success');
+                }
                 
                 // 监听来自iframe的消息
                 window.addEventListener('message', function(event) {
-                    if (event.data.type === 'click_result') {
-                        if (event.data.success) {
-                            showNotification('自动点击成功', 'success');
-                            addLog('自动点击成功', 'success');
-                        } else {
-                            showNotification('未找到可点击的元素', 'warning');
-                            addLog('未找到可点击的元素', 'warning');
+                    if (event.data.type && event.data.type.includes('intercepted') || event.data.type === 'link_handler_ready') {
+                        console.log('收到iframe消息:', event.data);
+                        
+                        if (event.data.type === 'link_handler_ready') {
+                            showNotification('链接处理脚本已激活', 'success');
+                            addLog('链接处理脚本已激活', 'success');
                         }
-                    }
-                    if (event.data.type === 'elements_found') {
-                        console.log('找到的元素:', event.data.elements);
+                        
+                        if (event.data.type === 'window_open_intercepted') {
+                            showNotification(`拦截新窗口打开，已在当前窗口加载: ${event.data.url}`, 'info');
+                            addLog(`拦截新窗口打开: ${event.data.url}`, 'info');
+                        }
+                        
+                        if (event.data.type === 'link_intercepted') {
+                            showNotification(`拦截链接点击，已在当前窗口加载: ${event.data.url}`, 'info');
+                            addLog(`拦截链接点击: ${event.data.url}`, 'info');
+                        }
                     }
                 });
                 
-                addLog('点击检测脚本已注入', 'success');
             } catch (error) {
                 console.log('脚本注入失败（跨域限制）:', error);
-                addLog('脚本注入失败（跨域限制）', 'warning');
-            }
-        }
-
-        // 通过postMessage发送点击命令
-        function sendClickCommand(groupId) {
-            const iframe = document.getElementById(`iframe-${groupId}`);
-            if (!iframe) return;
-            
-            try {
-                iframe.contentWindow.postMessage({
-                    type: 'click_logo'
-                }, '*');
-                showNotification('已发送点击命令', 'info');
-            } catch (error) {
-                console.error('发送点击命令失败:', error);
-            }
-        }
-
-        // 注入点击脚本
-        function injectClickScriptForGroup(groupId) {
-            const iframe = document.getElementById(`iframe-${groupId}`);
-            if (!iframe) return;
-            
-            try {
-                const script = `
-                    // 创建点击指示器
-                    const clickIndicator = document.createElement('div');
-                    clickIndicator.style.position = 'fixed';
-                    clickIndicator.style.top = '0';
-                    clickIndicator.style.right = '0';
-                    clickIndicator.style.background = '#10b981';
-                    clickIndicator.style.color = 'white';
-                    clickIndicator.style.padding = '10px 15px';
-                    clickIndicator.style.borderRadius = '8px';
-                    clickIndicator.style.zIndex = '999999';
-                    clickIndicator.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-                    clickIndicator.textContent = '点击脚本已激活';
-                    document.body.appendChild(clickIndicator);
-                    
-                    setTimeout(() => {
-                        clickIndicator.remove();
-                    }, 3000);
-                    
-                    console.log('点击脚本激活成功');
-                `;
+                addLog(`脚本注入失败: ${error.message}`, 'warning');
                 
-                const scriptElement = document.createElement('script');
-                scriptElement.textContent = script;
-                iframe.contentDocument.head.appendChild(scriptElement);
-                showNotification('点击脚本已注入', 'success');
-                addLog('点击脚本已注入', 'success');
-            } catch (error) {
-                showNotification('脚本注入失败（跨域限制）', 'error');
-                addLog('脚本注入失败', 'error');
+                // 尝试使用postMessage注入
+                try {
+                    iframe.contentWindow.postMessage({
+                        type: 'inject_script',
+                        script: `
+                            // 简单拦截window.open
+                            window.open = function(url, target) {
+                                if (target === '_blank') {
+                                    window.location.href = url;
+                                    return { closed: false };
+                                }
+                                return null;
+                            };
+                        `
+                    }, '*');
+                } catch (e) {
+                    console.error('postMessage注入也失败:', e);
+                }
+            }
+        }
+
+        // 为群组注入链接处理
+        function injectLinkHandlerForGroup(groupId) {
+            injectLinkHandlerScriptForGroup(groupId);
+        }
+
+        // 显示安全覆盖警告
+        function showSecurityOverrideWarning(url, groupId) {
+            const forceSecurity = document.getElementById('forceSecurityOverride')?.checked;
+            if (forceSecurity && url.includes('https')) {
+                const securityOverride = document.getElementById('securityOverride');
+                if (securityOverride) {
+                    securityOverride.classList.add('active');
+                    setTimeout(() => {
+                        securityOverride.classList.remove('active');
+                    }, 5000);
+                }
+                addLog(`已强制忽略安全警告: ${url}`, 'warning');
+            }
+        }
+
+        // 关闭安全覆盖提示
+        function closeSecurityOverride() {
+            const securityOverride = document.getElementById('securityOverride');
+            if (securityOverride) {
+                securityOverride.classList.remove('active');
             }
         }
 
@@ -2552,47 +2625,28 @@ https://test.com/group?cid=1234&user=test#section
             }
         }
 
-        // 测试代理浏览器
-        function testProxyBrowser() {
-            const url = prompt('请输入要测试的网站URL:', 'https://example.com');
-            if (!url) return;
+        // 测试链接处理功能
+        function testLinkHandling() {
+            const testUrl = prompt('请输入要测试的网站URL（该网站会有新窗口跳转）:', 'https://example.com');
+            if (!testUrl) return;
             
-            const proxyUrl = openWebsiteWithProxy(url);
+            const testGroupId = 'test_group_' + Date.now();
             
-            const browserFrame = document.getElementById('globalBrowserFrame');
-            const browserLoading = document.getElementById('browserLoading');
-            const browserStatus = document.getElementById('globalBrowserStatus');
-            const browserUrl = document.getElementById('globalBrowserUrl');
+            // 创建临时群组用于测试
+            const tempGroup = {
+                id: testGroupId,
+                name: '链接处理测试',
+                websiteUrl: testUrl,
+                useProxy: true,
+                forceSecurity: true
+            };
             
-            browserLoading.classList.add('active');
-            browserStatus.className = 'browser-status loading';
-            browserStatus.textContent = '通过代理加载中...';
-            browserUrl.value = url;
+            // 创建测试浏览器
+            const proxyUrl = openWebsiteWithProxy(testUrl, testGroupId);
+            createBrowserWindow(testGroupId, proxyUrl, testUrl);
             
-            browserFrame.src = proxyUrl;
-            
-            showNotification(`通过代理加载: ${url}`, 'info');
-            addLog(`测试代理浏览器: ${url}`, 'info');
-        }
-
-        // 测试完整自动化流程
-        function testFullAutomation() {
-            if (telegramGroups.length === 0) {
-                showNotification('请先添加群组', 'warning');
-                return;
-            }
-            
-            const group = telegramGroups[0]; // 使用第一个群组测试
-            showNotification(`开始测试完整自动化流程: ${group.name}`, 'info');
-            addLog(`开始测试完整自动化流程: ${group.name}`, 'info');
-            
-            // 重置步骤
-            for (let i = 1; i <= 5; i++) {
-                updateAutoStep(i, '等待开始...', null);
-            }
-            
-            // 执行自动化流程
-            startEnhancedAutoDetection(group.id);
+            showNotification('链接处理测试已开始，请点击网站中的链接测试', 'info');
+            addLog(`开始链接处理测试: ${testUrl}`, 'info');
         }
 
         // ==============================
@@ -2838,28 +2892,25 @@ https://test.com/group?cid=1234&user=test#section`;
                     try {
                         // 使用postMessage检查内容
                         const containsLink = await new Promise((resolve) => {
-                            const checkContent = () => {
-                                iframe.contentWindow.postMessage({
-                                    type: 'check_content',
-                                    content: link.cid || ''
-                                }, '*');
-                                
-                                // 监听响应
-                                const messageHandler = function(event) {
-                                    if (event.data.type === 'content_result') {
-                                        window.removeEventListener('message', messageHandler);
-                                        resolve(event.data.contains);
-                                    }
-                                };
-                                window.addEventListener('message', messageHandler);
-                                
-                                // 超时处理
-                                setTimeout(() => {
+                            iframe.contentWindow.postMessage({
+                                type: 'check_content',
+                                content: link.cid || ''
+                            }, '*');
+                            
+                            // 监听响应
+                            const messageHandler = function(event) {
+                                if (event.data.type === 'content_result') {
                                     window.removeEventListener('message', messageHandler);
-                                    resolve(false);
-                                }, 5000);
+                                    resolve(event.data.contains);
+                                }
                             };
-                            checkContent();
+                            window.addEventListener('message', messageHandler);
+                            
+                            // 超时处理
+                            setTimeout(() => {
+                                window.removeEventListener('message', messageHandler);
+                                resolve(false);
+                            }, 5000);
                         });
                         
                         if (containsLink) {
@@ -3403,42 +3454,61 @@ https://test.com/group?cid=1234&user=test#section`;
                 
                 browserFrame.src = proxyUrl;
                 
+                // 监听消息
+                window.addEventListener('message', function(event) {
+                    if (event.data.type && event.data.type.includes('intercepted')) {
+                        console.log('收到拦截消息:', event.data);
+                        showNotification(`链接被拦截并在当前窗口打开: ${event.data.url}`, 'info');
+                    }
+                });
+                
                 showNotification('正在通过代理加载网站...', 'info');
                 addLog(`测试网站: ${url}`, 'info');
             }
         }
 
-        // 注入点击脚本到全局浏览器
-        function injectClickScript() {
+        // 注入链接处理脚本到全局浏览器
+        function injectLinkHandlerScript() {
             const browserFrame = document.getElementById('globalBrowserFrame');
-            if (!browserFrame) return;
+            if (!browserFrame) {
+                showNotification('请先打开浏览器', 'warning');
+                return;
+            }
             
             try {
                 const script = `
-                    // 创建点击指示器
-                    const indicator = document.createElement('div');
-                    indicator.style.position = 'fixed';
-                    indicator.style.top = '0';
-                    indicator.style.right = '0';
-                    indicator.style.background = '#10b981';
-                    indicator.style.color = 'white';
-                    indicator.style.padding = '10px 15px';
-                    indicator.style.borderRadius = '8px';
-                    indicator.style.zIndex = '999999';
-                    indicator.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-                    indicator.textContent = '点击脚本已激活';
-                    document.body.appendChild(indicator);
+                    // 重写window.open
+                    window.open = function(url, target, features) {
+                        console.log('window.open被调用:', url, target);
+                        if (target === '_blank') {
+                            console.log('拦截新窗口打开，改为当前窗口打开');
+                            window.location.href = url;
+                            return { closed: false };
+                        }
+                        return null;
+                    };
                     
-                    setTimeout(() => {
-                        indicator.remove();
-                    }, 3000);
+                    // 拦截链接点击
+                    document.addEventListener('click', function(e) {
+                        let target = e.target;
+                        while (target && target.tagName !== 'A') {
+                            target = target.parentElement;
+                        }
+                        if (target && target.tagName === 'A' && target.target === '_blank') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('拦截链接点击:', target.href);
+                            window.location.href = target.href;
+                            return false;
+                        }
+                    }, true);
                     
-                    console.log('全局点击脚本激活成功');
+                    console.log('链接处理脚本已激活');
                 `;
                 
                 browserFrame.contentWindow.eval(script);
-                showNotification('全局点击脚本已注入', 'success');
-                addLog('全局点击脚本已注入', 'success');
+                showNotification('链接处理脚本已注入', 'success');
+                addLog('链接处理脚本已注入', 'success');
             } catch (error) {
                 showNotification('脚本注入失败', 'error');
                 addLog('脚本注入失败', 'error');
@@ -3910,7 +3980,8 @@ ${result.cid ? `CID: ${result.cid}\n` : ''}
                         checkInterval: 30,
                         isActive: true,
                         status: "waiting",
-                        useProxy: true
+                        useProxy: true,
+                        forceSecurity: true
                     }
                 ],
                 results: [],
@@ -3969,6 +4040,25 @@ ${result.cid ? `CID: ${result.cid}\n` : ''}
                     browserLoading.classList.remove('active');
                     browserStatus.className = 'browser-status ready';
                     browserStatus.textContent = '已加载';
+                    
+                    // 自动注入链接处理脚本
+                    setTimeout(() => {
+                        try {
+                            browserFrame.contentWindow.eval(`
+                                window.open = function(url, target) {
+                                    console.log('拦截window.open:', url, target);
+                                    if (target === '_blank') {
+                                        window.location.href = url;
+                                        return { closed: false };
+                                    }
+                                    return null;
+                                };
+                                console.log('全局链接拦截已激活');
+                            `);
+                        } catch (e) {
+                            console.log('自动注入失败:', e);
+                        }
+                    }, 1000);
                 };
                 
                 browserFrame.onerror = function() {
@@ -3980,13 +4070,38 @@ ${result.cid ? `CID: ${result.cid}\n` : ''}
             
             // 监听来自iframe的消息
             window.addEventListener('message', function(event) {
-                if (event.data.type === 'click_result') {
-                    console.log('点击结果:', event.data.success);
-                }
-                if (event.data.type === 'elements_found') {
-                    console.log('找到的元素:', event.data.elements);
+                if (event.data.type && event.data.type.includes('intercepted')) {
+                    console.log('收到iframe消息:', event.data);
+                    
+                    if (event.data.type === 'window_open_intercepted') {
+                        showNotification(`拦截新窗口打开，已在当前窗口加载: ${event.data.url}`, 'info');
+                        addLog(`拦截新窗口打开: ${event.data.url}`, 'info');
+                    }
+                    
+                    if (event.data.type === 'link_intercepted') {
+                        showNotification(`拦截链接点击，已在当前窗口加载: ${event.data.url}`, 'info');
+                        addLog(`拦截链接点击: ${event.data.url}`, 'info');
+                    }
                 }
             });
+            
+            // 监听点击命令
+            function sendClickCommand(groupId) {
+                const iframe = document.getElementById(`iframe-${groupId}`);
+                if (!iframe) return;
+                
+                try {
+                    iframe.contentWindow.postMessage({
+                        type: 'click_logo'
+                    }, '*');
+                    showNotification('已发送点击命令', 'info');
+                } catch (error) {
+                    console.error('发送点击命令失败:', error);
+                }
+            }
+            
+            // 暴露函数到全局
+            window.sendClickCommand = sendClickCommand;
         });
 
         // 页面加载完成后显示就绪通知
@@ -3995,6 +4110,65 @@ ${result.cid ? `CID: ${result.cid}\n` : ''}
             setTimeout(() => {
                 showNotification('全自动群组链接检测系统 - 专业版已就绪！', 'info');
             }, 1000);
+        };
+        
+        // 测试完整自动化流程
+        window.testFullAutomation = function() {
+            if (telegramGroups.length === 0) {
+                showNotification('请先添加群组', 'warning');
+                return;
+            }
+            
+            const group = telegramGroups[0]; // 使用第一个群组测试
+            showNotification(`开始测试完整自动化流程: ${group.name}`, 'info');
+            addLog(`开始测试完整自动化流程: ${group.name}`, 'info');
+            
+            // 重置步骤
+            for (let i = 1; i <= 5; i++) {
+                updateAutoStep(i, '等待开始...', null);
+            }
+            
+            // 执行自动化流程
+            startEnhancedAutoDetection(group.id);
+        };
+        
+        // 测试代理浏览器
+        window.testProxyBrowser = function() {
+            const url = prompt('请输入要测试的网站URL:', 'https://example.com');
+            if (!url) return;
+            
+            const proxyUrl = openWebsiteWithProxy(url);
+            
+            const browserFrame = document.getElementById('globalBrowserFrame');
+            const browserLoading = document.getElementById('browserLoading');
+            const browserStatus = document.getElementById('globalBrowserStatus');
+            const browserUrl = document.getElementById('globalBrowserUrl');
+            
+            browserLoading.classList.add('active');
+            browserStatus.className = 'browser-status loading';
+            browserStatus.textContent = '通过代理加载中...';
+            browserUrl.value = url;
+            
+            browserFrame.src = proxyUrl;
+            
+            showNotification(`通过代理加载: ${url}`, 'info');
+            addLog(`测试代理浏览器: ${url}`, 'info');
+        };
+        
+        // 测试真实点击
+        window.testRealClick = function() {
+            if (telegramGroups.length === 0) {
+                showNotification('请先添加群组', 'warning');
+                return;
+            }
+            
+            const group = telegramGroups[0];
+            openGroupBrowser(group.id);
+            
+            setTimeout(() => {
+                sendClickCommand(group.id);
+                showNotification('已发送点击命令', 'info');
+            }, 3000);
         };
     </script>
 </body>
