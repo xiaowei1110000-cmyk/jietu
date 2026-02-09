@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>内嵌浏览器批量检测系统</title>
+    <title>改进版内嵌浏览器批量检测系统</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -126,7 +126,6 @@
         
         .browser-placeholder i {
             font-size: 4rem;
-            color: #4cc9f0;
             margin-bottom: 20px;
         }
         
@@ -149,11 +148,85 @@
             margin-bottom: 15px;
             padding-bottom: 8px;
             border-bottom: 1px solid #2d4059;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .group-list {
+            background: #121a2e;
+            border-radius: 8px;
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+        
+        .group-item {
+            background: #1c2541;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            overflow: hidden;
+            border-left: 4px solid #4cc9f0;
+        }
+        
+        .group-header {
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            background: rgba(76, 201, 240, 0.1);
+        }
+        
+        .group-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .group-name {
+            font-weight: bold;
+            color: #4cc9f0;
+        }
+        
+        .group-url-count {
+            background: #2d4059;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+        }
+        
+        .group-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .group-btn {
+            background: transparent;
+            border: none;
+            color: #a9a9a9;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .group-btn:hover {
+            color: #4cc9f0;
+        }
+        
+        .group-content {
+            padding: 15px;
+            border-top: 1px solid #2d4059;
+            display: none;
+        }
+        
+        .group-content.active {
+            display: block;
         }
         
         .url-list {
-            background: #121a2e;
-            border-radius: 8px;
+            background: #0f1525;
+            border-radius: 5px;
             padding: 10px;
             max-height: 150px;
             overflow-y: auto;
@@ -162,7 +235,7 @@
         
         .url-item {
             padding: 8px 10px;
-            background: #1c2541;
+            background: #121a2e;
             margin-bottom: 8px;
             border-radius: 5px;
             display: flex;
@@ -175,7 +248,7 @@
         }
         
         .url-text {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             max-width: 70%;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -227,33 +300,6 @@
         .input-group button:hover {
             background: #4cc9f0;
             color: #0f1525;
-        }
-        
-        .telegram-groups {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .group-tag {
-            background: #1c2541;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .group-tag i {
-            color: #4cc9f0;
-        }
-        
-        .group-tag .remove {
-            color: #ff5f57;
-            cursor: pointer;
-            font-size: 1rem;
         }
         
         .button-group {
@@ -351,6 +397,18 @@
             font-size: 0.9rem;
         }
         
+        .empty-state {
+            text-align: center;
+            padding: 30px 20px;
+            color: #a9a9a9;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #2d4059;
+        }
+        
         /* 响应式调整 */
         @media (max-width: 1200px) {
             .main-content {
@@ -371,8 +429,8 @@
 <body>
     <div class="container">
         <header>
-            <h1><i class="fas fa-globe"></i> 内嵌浏览器批量检测系统</h1>
-            <p class="subtitle">批量操作 | 链接检测 | 自动截图 | Telegram通知</p>
+            <h1><i class="fas fa-globe"></i> 改进版内嵌浏览器批量检测系统</h1>
+            <p class="subtitle">多群组绑定 | 独立链接管理 | 按顺序批量测试</p>
         </header>
         
         <div class="main-content">
@@ -383,7 +441,7 @@
                         <div class="control-btn minimize"></div>
                         <div class="control-btn maximize"></div>
                     </div>
-                    <input type="text" class="browser-url" id="currentUrl" value="https://example.com" readonly>
+                    <input type="text" class="browser-url" id="currentUrl" value="https://www.huanlegu.org/" readonly>
                     <div class="browser-actions">
                         <button id="refreshBtn" class="action-btn" style="padding: 5px 15px; font-size: 0.9rem;"><i class="fas fa-redo"></i> 刷新</button>
                     </div>
@@ -391,9 +449,10 @@
                 <div class="browser-view">
                     <div class="browser-frame" id="browserFrame">
                         <div class="browser-placeholder" id="browserPlaceholder">
-                            <i class="fas fa-compass"></i>
+                            <i class="fas fa-compass" style="color: #4cc9f0;"></i>
                             <p>浏览器就绪，点击下方按钮开始批量检测</p>
-                            <p>当前URL: <span id="displayUrl">https://example.com</span></p>
+                            <p>当前URL: <span id="displayUrl">https://www.huanlegu.org/</span></p>
+                            <p id="pageStatus">页面加载完成</p>
                         </div>
                     </div>
                 </div>
@@ -401,55 +460,18 @@
             
             <div class="control-panel">
                 <div class="panel-section">
-                    <h3 class="panel-title"><i class="fas fa-link"></i> 待检测URL列表</h3>
-                    <div class="url-list" id="urlList">
-                        <div class="url-item">
-                            <span class="url-text">https://example.com</span>
-                            <div class="url-actions">
-                                <button class="url-btn" onclick="removeUrl(0)"><i class="fas fa-times"></i></button>
-                            </div>
-                        </div>
-                        <div class="url-item">
-                            <span class="url-text">https://google.com</span>
-                            <div class="url-actions">
-                                <button class="url-btn" onclick="removeUrl(1)"><i class="fas fa-times"></i></button>
-                            </div>
-                        </div>
-                        <div class="url-item">
-                            <span class="url-text">https://github.com</span>
-                            <div class="url-actions">
-                                <button class="url-btn" onclick="removeUrl(2)"><i class="fas fa-times"></i></button>
-                            </div>
-                        </div>
+                    <h3 class="panel-title">
+                        <span><i class="fab fa-telegram"></i> Telegram群组管理</span>
+                        <button id="addGroupBtn" class="action-btn" style="padding: 5px 10px; font-size: 0.8rem;"><i class="fas fa-plus"></i> 添加群组</button>
+                    </h3>
+                    
+                    <div class="group-list" id="groupList">
+                        <!-- 群组将通过JS动态生成 -->
                     </div>
                     
-                    <div class="input-group">
-                        <input type="text" id="newUrl" placeholder="输入要检测的URL (例如: https://example.com)">
-                        <button id="addUrlBtn"><i class="fas fa-plus"></i> 添加</button>
-                    </div>
-                    
-                    <div class="input-group">
-                        <input type="text" id="batchUrls" placeholder="批量添加URL (每行一个或逗号分隔)">
-                        <button id="addBatchBtn"><i class="fas fa-layer-group"></i> 批量添加</button>
-                    </div>
-                </div>
-                
-                <div class="panel-section">
-                    <h3 class="panel-title"><i class="fab fa-telegram"></i> 绑定Telegram群组</h3>
-                    <div class="telegram-groups" id="telegramGroups">
-                        <div class="group-tag">
-                            <i class="fab fa-telegram"></i> 测试群组
-                            <span class="remove" onclick="removeGroup(0)"><i class="fas fa-times"></i></span>
-                        </div>
-                        <div class="group-tag">
-                            <i class="fab fa-telegram"></i> 监控频道
-                            <span class="remove" onclick="removeGroup(1)"><i class="fas fa-times"></i></span>
-                        </div>
-                    </div>
-                    
-                    <div class="input-group">
-                        <input type="text" id="newGroup" placeholder="输入Telegram群组ID或用户名">
-                        <button id="addGroupBtn"><i class="fas fa-paper-plane"></i> 绑定</button>
+                    <div class="empty-state" id="noGroupsMessage" style="display: none;">
+                        <i class="fas fa-users"></i>
+                        <p>暂无群组，请点击"添加群组"按钮创建</p>
                     </div>
                 </div>
                 
@@ -463,14 +485,18 @@
                         <input type="checkbox" id="autoScreenshot" checked>
                         <label for="autoScreenshot">检测到匹配时自动截图并发送到Telegram</label>
                     </div>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                        <input type="checkbox" id="sequentialTesting" checked>
+                        <label for="sequentialTesting">按群组顺序批量测试</label>
+                    </div>
                 </div>
                 
                 <div class="button-group">
-                    <button class="action-btn start" id="startBtn">
-                        <i class="fas fa-play-circle"></i> 开始批量检测
+                    <button class="action-btn start" id="startAllBtn">
+                        <i class="fas fa-play-circle"></i> 开始全部检测
                     </button>
-                    <button class="action-btn" id="testBtn">
-                        <i class="fas fa-vial"></i> 测试当前页面
+                    <button class="action-btn" id="testSelectedBtn">
+                        <i class="fas fa-vial"></i> 测试选中群组
                     </button>
                     <button class="action-btn stop" id="stopBtn" disabled>
                         <i class="fas fa-stop-circle"></i> 停止检测
@@ -483,243 +509,413 @@
             <h3 class="status-title"><i class="fas fa-history"></i> 操作日志</h3>
             <div class="status-log" id="statusLog">
                 <div class="log-entry">
-                    <span class="log-time">[10:23:45]</span>
+                    <span class="log-time">[16:41:09]</span>
                     <span class="log-info">系统初始化完成，等待操作...</span>
                 </div>
                 <div class="log-entry">
-                    <span class="log-time">[10:24:12]</span>
-                    <span class="log-success">URL列表加载完成，共3个待检测链接</span>
-                </div>
-                <div class="log-entry">
-                    <span class="log-time">[10:24:30]</span>
-                    <span class="log-info">Telegram群组绑定成功: 测试群组, 监控频道</span>
+                    <span class="log-time">[16:41:11]</span>
+                    <span class="log-success">已加载3个群组，共5个待检测链接</span>
                 </div>
             </div>
         </div>
         
         <footer>
-            <p>内嵌浏览器批量检测系统 &copy; 2023 | 支持批量操作、链接检测和Telegram自动通知</p>
+            <p>改进版内嵌浏览器批量检测系统 &copy; 2023 | 支持多群组独立链接管理和按顺序批量测试</p>
         </footer>
     </div>
 
+    <!-- 添加群组模态框 -->
+    <div id="groupModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: #0f1525; border-radius: 12px; padding: 30px; width: 500px; max-width: 90%; box-shadow: 0 15px 40px rgba(0,0,0,0.5);">
+            <h3 style="color: #4cc9f0; margin-bottom: 20px; font-size: 1.5rem;"><i class="fab fa-telegram"></i> 添加新群组</h3>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px;">群组名称:</label>
+                <input type="text" id="modalGroupName" placeholder="例如: 测试群组" style="width: 100%; padding: 12px; background: #121a2e; border: 1px solid #2d4059; border-radius: 8px; color: #e0e0e0;">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px;">群组ID/用户名:</label>
+                <input type="text" id="modalGroupId" placeholder="例如: @mygroup 或 -100123456789" style="width: 100%; padding: 12px; background: #121a2e; border: 1px solid #2d4059; border-radius: 8px; color: #e0e0e0;">
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; margin-bottom: 8px;">初始URL列表 (每行一个):</label>
+                <textarea id="modalGroupUrls" placeholder="https://example.com\nhttps://google.com" style="width: 100%; height: 120px; padding: 12px; background: #121a2e; border: 1px solid #2d4059; border-radius: 8px; color: #e0e0e0; resize: none;"></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 15px; justify-content: flex-end;">
+                <button id="cancelModalBtn" class="action-btn" style="background: #6c757d; padding: 10px 20px;">取消</button>
+                <button id="saveGroupBtn" class="action-btn start" style="padding: 10px 20px;">保存群组</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // 模拟数据
-        let urls = [
-            "https://example.com",
-            "https://google.com",
-            "https://github.com"
+        // 群组数据结构
+        const groups = [
+            {
+                id: 1,
+                name: "测试群组",
+                groupId: "@test_group",
+                urls: ["https://www.huanlegu.org/", "https://example.com"],
+                active: true,
+                expanded: true
+            },
+            {
+                id: 2,
+                name: "监控频道",
+                groupId: "@monitor_channel",
+                urls: ["https://google.com", "https://github.com"],
+                active: true,
+                expanded: false
+            },
+            {
+                id: 3,
+                name: "VIP群组",
+                groupId: "-100123456789",
+                urls: ["https://stackoverflow.com"],
+                active: true,
+                expanded: false
+            }
         ];
         
-        let telegramGroups = ["测试群组", "监控频道"];
+        // 全局变量
         let isRunning = false;
+        let currentGroupIndex = 0;
         let currentUrlIndex = 0;
+        let currentGroupId = null;
         let logEntries = [];
         
         // DOM元素
-        const urlListEl = document.getElementById('urlList');
-        const telegramGroupsEl = document.getElementById('telegramGroups');
+        const groupListEl = document.getElementById('groupList');
+        const noGroupsMessageEl = document.getElementById('noGroupsMessage');
         const statusLogEl = document.getElementById('statusLog');
         const displayUrlEl = document.getElementById('displayUrl');
         const currentUrlEl = document.getElementById('currentUrl');
         const browserPlaceholderEl = document.getElementById('browserPlaceholder');
+        const pageStatusEl = document.getElementById('pageStatus');
+        const groupModalEl = document.getElementById('groupModal');
         
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
-            updateUrlList();
-            updateTelegramGroups();
+            updateGroupList();
             
-            // 添加URL按钮事件
-            document.getElementById('addUrlBtn').addEventListener('click', addUrl);
-            document.getElementById('newUrl').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') addUrl();
-            });
+            // 添加群组按钮事件
+            document.getElementById('addGroupBtn').addEventListener('click', showGroupModal);
             
-            // 批量添加URL按钮事件
-            document.getElementById('addBatchBtn').addEventListener('click', addBatchUrls);
+            // 模态框按钮事件
+            document.getElementById('cancelModalBtn').addEventListener('click', hideGroupModal);
+            document.getElementById('saveGroupBtn').addEventListener('click', saveGroup);
             
-            // 添加Telegram群组按钮事件
-            document.getElementById('addGroupBtn').addEventListener('click', addTelegramGroup);
-            document.getElementById('newGroup').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') addTelegramGroup();
-            });
+            // 开始全部检测按钮事件
+            document.getElementById('startAllBtn').addEventListener('click', startAllDetection);
             
-            // 开始检测按钮事件
-            document.getElementById('startBtn').addEventListener('click', startBatchDetection);
+            // 测试选中群组按钮事件
+            document.getElementById('testSelectedBtn').addEventListener('click', testSelectedGroup);
             
             // 停止检测按钮事件
-            document.getElementById('stopBtn').addEventListener('click', stopBatchDetection);
-            
-            // 测试当前页面按钮事件
-            document.getElementById('testBtn').addEventListener('click', testCurrentPage);
+            document.getElementById('stopBtn').addEventListener('click', stopDetection);
             
             // 刷新按钮事件
             document.getElementById('refreshBtn').addEventListener('click', refreshBrowser);
             
             // 初始化日志
             addLog("系统初始化完成，等待操作...", "info");
-            addLog("URL列表加载完成，共" + urls.length + "个待检测链接", "success");
-            addLog("Telegram群组绑定成功: " + telegramGroups.join(", "), "info");
+            addLog(`已加载${groups.length}个群组，共${getTotalUrls()}个待检测链接`, "success");
         });
         
-        // 添加URL
-        function addUrl() {
-            const newUrlInput = document.getElementById('newUrl');
-            const url = newUrlInput.value.trim();
+        // 更新群组列表显示
+        function updateGroupList() {
+            groupListEl.innerHTML = '';
             
-            if (url && isValidUrl(url)) {
-                urls.push(url);
-                updateUrlList();
-                newUrlInput.value = '';
-                addLog("已添加URL: " + url, "success");
-            } else {
-                addLog("无效的URL格式，请检查后重试", "error");
-            }
-        }
-        
-        // 批量添加URL
-        function addBatchUrls() {
-            const batchUrlsInput = document.getElementById('batchUrls');
-            const urlsText = batchUrlsInput.value.trim();
-            
-            if (!urlsText) {
-                addLog("请输入要批量添加的URL", "warning");
+            if (groups.length === 0) {
+                noGroupsMessageEl.style.display = 'block';
                 return;
             }
             
-            // 支持逗号分隔或换行分隔
-            let urlArray = urlsText.split(/[\n,]/);
-            let addedCount = 0;
+            noGroupsMessageEl.style.display = 'none';
             
-            urlArray.forEach(url => {
-                url = url.trim();
-                if (url && isValidUrl(url)) {
-                    urls.push(url);
-                    addedCount++;
-                }
-            });
-            
-            if (addedCount > 0) {
-                updateUrlList();
-                batchUrlsInput.value = '';
-                addLog("批量添加成功，新增" + addedCount + "个URL", "success");
-            } else {
-                addLog("未找到有效的URL格式，请检查后重试", "warning");
-            }
-        }
-        
-        // 移除URL
-        function removeUrl(index) {
-            if (index >= 0 && index < urls.length) {
-                const removedUrl = urls[index];
-                urls.splice(index, 1);
-                updateUrlList();
-                addLog("已移除URL: " + removedUrl, "info");
-            }
-        }
-        
-        // 更新URL列表显示
-        function updateUrlList() {
-            urlListEl.innerHTML = '';
-            
-            if (urls.length === 0) {
-                urlListEl.innerHTML = '<div class="url-item" style="justify-content: center; color: #a9a9a9;">暂无URL，请添加</div>';
-                return;
-            }
-            
-            urls.forEach((url, index) => {
-                const urlItem = document.createElement('div');
-                urlItem.className = 'url-item';
-                urlItem.innerHTML = `
-                    <span class="url-text">${url}</span>
-                    <div class="url-actions">
-                        <button class="url-btn" onclick="removeUrl(${index})"><i class="fas fa-times"></i></button>
+            groups.forEach((group, index) => {
+                const groupItem = document.createElement('div');
+                groupItem.className = 'group-item';
+                groupItem.innerHTML = `
+                    <div class="group-header" onclick="toggleGroup(${group.id})">
+                        <div class="group-info">
+                            <i class="fab fa-telegram" style="color: #4cc9f0;"></i>
+                            <span class="group-name">${group.name}</span>
+                            <span class="group-url-count">${group.urls.length}个链接</span>
+                        </div>
+                        <div class="group-actions">
+                            <button class="group-btn" onclick="event.stopPropagation(); editGroup(${group.id})" title="编辑群组">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="group-btn" onclick="event.stopPropagation(); deleteGroup(${group.id})" title="删除群组">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="group-content ${group.expanded ? 'active' : ''}" id="group-content-${group.id}">
+                        <div style="margin-bottom: 10px; font-size: 0.9rem; color: #a9a9a9;">
+                            <i class="fas fa-hashtag"></i> ${group.groupId}
+                        </div>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <span>URL列表:</span>
+                                <button class="action-btn" style="padding: 5px 10px; font-size: 0.8rem;" onclick="addUrlToGroup(${group.id})">
+                                    <i class="fas fa-plus"></i> 添加URL
+                                </button>
+                            </div>
+                            <div class="url-list" id="url-list-${group.id}">
+                                ${group.urls.map((url, urlIndex) => `
+                                    <div class="url-item">
+                                        <span class="url-text">${url}</span>
+                                        <div class="url-actions">
+                                            <button class="url-btn" onclick="testSingleUrl(${group.id}, ${urlIndex})" title="测试此URL">
+                                                <i class="fas fa-vial"></i>
+                                            </button>
+                                            <button class="url-btn" onclick="removeUrlFromGroup(${group.id}, ${urlIndex})" title="删除此URL">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <button class="action-btn" style="width: 100%; padding: 10px; font-size: 0.9rem;" onclick="startGroupDetection(${group.id})">
+                            <i class="fas fa-play-circle"></i> 开始此群组检测
+                        </button>
                     </div>
                 `;
-                urlListEl.appendChild(urlItem);
+                groupListEl.appendChild(groupItem);
             });
         }
         
-        // 添加Telegram群组
-        function addTelegramGroup() {
-            const newGroupInput = document.getElementById('newGroup');
-            const group = newGroupInput.value.trim();
+        // 显示添加群组模态框
+        function showGroupModal() {
+            groupModalEl.style.display = 'flex';
+        }
+        
+        // 隐藏添加群组模态框
+        function hideGroupModal() {
+            groupModalEl.style.display = 'none';
+            // 清空输入框
+            document.getElementById('modalGroupName').value = '';
+            document.getElementById('modalGroupId').value = '';
+            document.getElementById('modalGroupUrls').value = '';
+        }
+        
+        // 保存群组
+        function saveGroup() {
+            const name = document.getElementById('modalGroupName').value.trim();
+            const groupId = document.getElementById('modalGroupId').value.trim();
+            const urlsText = document.getElementById('modalGroupUrls').value.trim();
             
+            if (!name || !groupId) {
+                addLog("群组名称和ID不能为空", "error");
+                return;
+            }
+            
+            // 解析URL列表
+            let urls = [];
+            if (urlsText) {
+                urls = urlsText.split('\n').map(url => url.trim()).filter(url => url && isValidUrl(url));
+            }
+            
+            // 创建新群组
+            const newGroup = {
+                id: Date.now(), // 使用时间戳作为ID
+                name,
+                groupId,
+                urls,
+                active: true,
+                expanded: true
+            };
+            
+            groups.push(newGroup);
+            updateGroupList();
+            hideGroupModal();
+            
+            addLog(`已创建群组: ${name} (${urls.length}个链接)`, "success");
+        }
+        
+        // 切换群组展开状态
+        function toggleGroup(groupId) {
+            const group = groups.find(g => g.id === groupId);
             if (group) {
-                telegramGroups.push(group);
-                updateTelegramGroups();
-                newGroupInput.value = '';
-                addLog("已绑定Telegram群组: " + group, "success");
-            } else {
-                addLog("群组名称不能为空", "error");
+                group.expanded = !group.expanded;
+                updateGroupList();
             }
         }
         
-        // 移除Telegram群组
-        function removeGroup(index) {
-            if (index >= 0 && index < telegramGroups.length) {
-                const removedGroup = telegramGroups[index];
-                telegramGroups.splice(index, 1);
-                updateTelegramGroups();
-                addLog("已移除Telegram群组: " + removedGroup, "info");
-            }
-        }
-        
-        // 更新Telegram群组显示
-        function updateTelegramGroups() {
-            telegramGroupsEl.innerHTML = '';
+        // 编辑群组
+        function editGroup(groupId) {
+            const group = groups.find(g => g.id === groupId);
+            if (!group) return;
             
-            if (telegramGroups.length === 0) {
-                telegramGroupsEl.innerHTML = '<div style="color: #a9a9a9; padding: 10px;">暂无绑定群组</div>';
+            // 填充模态框
+            document.getElementById('modalGroupName').value = group.name;
+            document.getElementById('modalGroupId').value = group.groupId;
+            document.getElementById('modalGroupUrls').value = group.urls.join('\n');
+            
+            // 显示模态框
+            groupModalEl.style.display = 'flex';
+            
+            // 临时保存当前编辑的群组ID
+            groupModalEl.dataset.editingGroupId = groupId;
+            
+            // 修改保存按钮文本
+            document.getElementById('saveGroupBtn').textContent = '更新群组';
+            document.getElementById('saveGroupBtn').onclick = updateGroup;
+        }
+        
+        // 更新群组
+        function updateGroup() {
+            const groupId = parseInt(groupModalEl.dataset.editingGroupId);
+            const groupIndex = groups.findIndex(g => g.id === groupId);
+            
+            if (groupIndex === -1) {
+                addLog("找不到要更新的群组", "error");
                 return;
             }
             
-            telegramGroups.forEach((group, index) => {
-                const groupTag = document.createElement('div');
-                groupTag.className = 'group-tag';
-                groupTag.innerHTML = `
-                    <i class="fab fa-telegram"></i> ${group}
-                    <span class="remove" onclick="removeGroup(${index})"><i class="fas fa-times"></i></span>
-                `;
-                telegramGroupsEl.appendChild(groupTag);
-            });
-        }
-        
-        // 开始批量检测
-        function startBatchDetection() {
-            if (urls.length === 0) {
-                addLog("没有待检测的URL，请先添加", "warning");
+            const name = document.getElementById('modalGroupName').value.trim();
+            const groupIdValue = document.getElementById('modalGroupId').value.trim();
+            const urlsText = document.getElementById('modalGroupUrls').value.trim();
+            
+            if (!name || !groupIdValue) {
+                addLog("群组名称和ID不能为空", "error");
                 return;
             }
             
-            if (telegramGroups.length === 0) {
-                addLog("未绑定Telegram群组，检测结果将无法发送", "warning");
+            // 解析URL列表
+            let urls = [];
+            if (urlsText) {
+                urls = urlsText.split('\n').map(url => url.trim()).filter(url => url && isValidUrl(url));
+            }
+            
+            // 更新群组
+            groups[groupIndex].name = name;
+            groups[groupIndex].groupId = groupIdValue;
+            groups[groupIndex].urls = urls;
+            
+            updateGroupList();
+            hideGroupModal();
+            
+            // 恢复保存按钮
+            document.getElementById('saveGroupBtn').textContent = '保存群组';
+            document.getElementById('saveGroupBtn').onclick = saveGroup;
+            
+            addLog(`已更新群组: ${name}`, "success");
+        }
+        
+        // 删除群组
+        function deleteGroup(groupId) {
+            if (!confirm("确定要删除这个群组吗？")) return;
+            
+            const groupIndex = groups.findIndex(g => g.id === groupId);
+            if (groupIndex !== -1) {
+                const groupName = groups[groupIndex].name;
+                groups.splice(groupIndex, 1);
+                updateGroupList();
+                addLog(`已删除群组: ${groupName}`, "warning");
+            }
+        }
+        
+        // 添加URL到群组
+        function addUrlToGroup(groupId) {
+            const url = prompt("请输入要添加的URL:");
+            if (!url || !isValidUrl(url)) {
+                addLog("无效的URL格式", "error");
+                return;
+            }
+            
+            const group = groups.find(g => g.id === groupId);
+            if (group) {
+                group.urls.push(url);
+                updateGroupList();
+                addLog(`已添加URL到群组 ${group.name}: ${url}`, "success");
+            }
+        }
+        
+        // 从群组中移除URL
+        function removeUrlFromGroup(groupId, urlIndex) {
+            const group = groups.find(g => g.id === groupId);
+            if (group && urlIndex >= 0 && urlIndex < group.urls.length) {
+                const removedUrl = group.urls[urlIndex];
+                group.urls.splice(urlIndex, 1);
+                updateGroupList();
+                addLog(`已从群组 ${group.name} 移除URL: ${removedUrl}`, "info");
+            }
+        }
+        
+        // 开始全部检测
+        function startAllDetection() {
+            if (groups.length === 0) {
+                addLog("没有可检测的群组", "warning");
+                return;
             }
             
             isRunning = true;
+            currentGroupIndex = 0;
+            
+            document.getElementById('startAllBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('testSelectedBtn').disabled = true;
+            
+            addLog(`开始全部检测，共${groups.length}个群组`, "info");
+            
+            // 开始处理第一个群组
+            processNextGroup();
+        }
+        
+        // 处理下一个群组
+        function processNextGroup() {
+            if (!isRunning || currentGroupIndex >= groups.length) {
+                stopDetection();
+                return;
+            }
+            
+            const group = groups[currentGroupIndex];
+            currentGroupId = group.id;
             currentUrlIndex = 0;
             
-            document.getElementById('startBtn').disabled = true;
-            document.getElementById('stopBtn').disabled = false;
+            addLog(`开始检测群组: ${group.name} (${group.urls.length}个链接)`, "info");
             
-            addLog("开始批量检测，共" + urls.length + "个URL待检测", "info");
-            
-            // 开始处理第一个URL
+            // 开始处理当前群组的第一个URL
             processNextUrl();
         }
         
         // 处理下一个URL
         function processNextUrl() {
-            if (!isRunning || currentUrlIndex >= urls.length) {
-                stopBatchDetection();
+            const group = groups.find(g => g.id === currentGroupId);
+            
+            if (!isRunning || !group || currentUrlIndex >= group.urls.length) {
+                // 当前群组处理完成，处理下一个群组
+                currentGroupIndex++;
+                if (currentGroupIndex < groups.length) {
+                    setTimeout(processNextGroup, 1000);
+                } else {
+                    stopDetection();
+                }
                 return;
             }
             
-            const url = urls[currentUrlIndex];
-            addLog("正在检测URL (" + (currentUrlIndex + 1) + "/" + urls.length + "): " + url, "info");
+            const url = group.urls[currentUrlIndex];
+            addLog(`正在检测URL (${currentUrlIndex + 1}/${group.urls.length}): ${url}`, "info");
             
             // 更新浏览器显示
             displayUrlEl.textContent = url;
             currentUrlEl.value = url;
+            pageStatusEl.textContent = "正在加载页面...";
+            browserPlaceholderEl.innerHTML = `
+                <i class="fas fa-sync fa-spin" style="color: #4cc9f0;"></i>
+                <p>正在加载页面...</p>
+                <p>当前URL: <span id="displayUrl">${url}</span></p>
+                <p id="pageStatus">正在加载页面...</p>
+            `;
             
             // 模拟检测过程
             setTimeout(() => {
@@ -727,76 +923,137 @@
                 const isMatch = Math.random() > 0.3; // 70%匹配率
                 
                 if (isMatch) {
-                    addLog("检测成功: URL匹配预设链接，正在截图...", "success");
+                    addLog(`检测成功: URL匹配预设链接 (群组: ${group.name})`, "success");
                     
-                    // 模拟截图和发送到Telegram
-                    simulateScreenshotAndSend(url);
+                    // 检查是否启用自动截图
+                    if (document.getElementById('autoScreenshot').checked) {
+                        addLog(`正在截图并发送到Telegram群组: ${group.name}`, "info");
+                        simulateScreenshotAndSend(group, url);
+                    }
                 } else {
-                    addLog("检测失败: URL不匹配预设链接", "error");
+                    addLog(`检测失败: URL不匹配预设链接 (群组: ${group.name})`, "error");
                 }
+                
+                // 页面加载完成
+                pageStatusEl.textContent = "页面加载完成";
+                browserPlaceholderEl.innerHTML = `
+                    <i class="fas fa-check-circle" style="color: #28ca42;"></i>
+                    <p>页面加载完成</p>
+                    <p>当前URL: <span id="displayUrl">${url}</span></p>
+                    <p id="pageStatus">页面加载完成</p>
+                `;
                 
                 // 处理下一个URL
                 currentUrlIndex++;
-                if (currentUrlIndex < urls.length) {
-                    setTimeout(processNextUrl, 1500);
-                } else {
-                    stopBatchDetection();
-                }
+                setTimeout(processNextUrl, 1500);
             }, 2000);
         }
         
-        // 模拟截图并发送到Telegram
-        function simulateScreenshotAndSend(url) {
-            addLog("截图完成，正在发送到绑定的Telegram群组...", "info");
+        // 开始群组检测
+        function startGroupDetection(groupId) {
+            const groupIndex = groups.findIndex(g => g.id === groupId);
+            if (groupIndex === -1) return;
             
-            // 模拟发送到每个绑定的群组
-            telegramGroups.forEach(group => {
-                setTimeout(() => {
-                    addLog("截图已发送到Telegram群组: " + group, "success");
-                }, 500);
-            });
-        }
-        
-        // 停止检测
-        function stopBatchDetection() {
-            isRunning = false;
+            const group = groups[groupIndex];
             
-            document.getElementById('startBtn').disabled = false;
-            document.getElementById('stopBtn').disabled = true;
-            
-            if (currentUrlIndex >= urls.length) {
-                addLog("批量检测完成，已处理" + urls.length + "个URL", "success");
-            } else {
-                addLog("检测已停止，已处理" + currentUrlIndex + "个URL", "warning");
-            }
-        }
-        
-        // 测试当前页面
-        function testCurrentPage() {
-            const url = currentUrlEl.value;
-            if (!url) {
-                addLog("当前浏览器没有URL", "error");
+            if (group.urls.length === 0) {
+                addLog(`群组 ${group.name} 没有可检测的URL`, "warning");
                 return;
             }
             
-            addLog("开始测试当前页面: " + url, "info");
+            isRunning = true;
+            currentGroupId = groupId;
+            currentUrlIndex = 0;
             
-            // 模拟检测过程
+            document.getElementById('startAllBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('testSelectedBtn').disabled = true;
+            
+            addLog(`开始检测群组: ${group.name} (${group.urls.length}个链接)`, "info");
+            
+            // 开始处理第一个URL
+            processNextUrl();
+        }
+        
+        // 测试选中群组
+        function testSelectedGroup() {
+            // 这里应该检查哪个群组被选中，为了简化，我们测试第一个展开的群组
+            const expandedGroup = groups.find(g => g.expanded);
+            if (!expandedGroup) {
+                addLog("请先展开一个群组进行测试", "warning");
+                return;
+            }
+            
+            startGroupDetection(expandedGroup.id);
+        }
+        
+        // 测试单个URL
+        function testSingleUrl(groupId, urlIndex) {
+            const group = groups.find(g => g.id === groupId);
+            if (!group || urlIndex < 0 || urlIndex >= group.urls.length) return;
+            
+            const url = group.urls[urlIndex];
+            
+            addLog(`开始测试单个URL: ${url} (群组: ${group.name})`, "info");
+            
+            // 更新浏览器显示
+            displayUrlEl.textContent = url;
+            currentUrlEl.value = url;
+            pageStatusEl.textContent = "正在测试页面...";
+            browserPlaceholderEl.innerHTML = `
+                <i class="fas fa-vial" style="color: #ffbd2e;"></i>
+                <p>正在测试页面...</p>
+                <p>当前URL: <span id="displayUrl">${url}</span></p>
+                <p id="pageStatus">正在测试页面...</p>
+            `;
+            
+            // 模拟测试过程
             setTimeout(() => {
                 const isMatch = Math.random() > 0.5; // 50%匹配率
                 
                 if (isMatch) {
-                    addLog("测试成功: URL匹配预设链接", "success");
-                    
-                    // 检查是否启用自动截图
-                    if (document.getElementById('autoScreenshot').checked) {
-                        addLog("自动截图功能已启用，正在截图并发送到Telegram...", "info");
-                        simulateScreenshotAndSend(url);
-                    }
+                    addLog(`测试成功: URL匹配预设链接 (群组: ${group.name})`, "success");
                 } else {
-                    addLog("测试失败: URL不匹配预设链接", "error");
+                    addLog(`测试失败: URL不匹配预设链接 (群组: ${group.name})`, "error");
                 }
+                
+                // 页面加载完成
+                pageStatusEl.textContent = "测试完成";
+                browserPlaceholderEl.innerHTML = `
+                    <i class="fas fa-check-circle" style="color: ${isMatch ? '#28ca42' : '#ff5f57'}"></i>
+                    <p>${isMatch ? '测试成功' : '测试失败'}</p>
+                    <p>当前URL: <span id="displayUrl">${url}</span></p>
+                    <p id="pageStatus">测试完成</p>
+                `;
             }, 1500);
+        }
+        
+        // 模拟截图并发送到Telegram
+        function simulateScreenshotAndSend(group, url) {
+            setTimeout(() => {
+                addLog(`截图已发送到Telegram群组: ${group.name} (${group.groupId})`, "success");
+            }, 500);
+        }
+        
+        // 停止检测
+        function stopDetection() {
+            isRunning = false;
+            
+            document.getElementById('startAllBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('testSelectedBtn').disabled = false;
+            
+            const totalUrls = getTotalUrls();
+            const processedUrls = getProcessedUrlsCount();
+            
+            if (processedUrls >= totalUrls) {
+                addLog(`批量检测完成，已处理${groups.length}个群组，共${processedUrls}个URL`, "success");
+            } else {
+                addLog(`检测已停止，已处理${processedUrls}个URL`, "warning");
+            }
+            
+            // 重置页面状态
+            pageStatusEl.textContent = "检测已停止";
         }
         
         // 刷新浏览器
@@ -805,19 +1062,23 @@
             addLog("刷新浏览器: " + url, "info");
             
             // 模拟刷新效果
+            pageStatusEl.textContent = "正在刷新页面...";
             browserPlaceholderEl.innerHTML = `
-                <i class="fas fa-sync fa-spin"></i>
-                <p>正在加载页面...</p>
+                <i class="fas fa-sync fa-spin" style="color: #4cc9f0;"></i>
+                <p>正在刷新页面...</p>
                 <p>当前URL: <span id="displayUrl">${url}</span></p>
+                <p id="pageStatus">正在刷新页面...</p>
             `;
             
             setTimeout(() => {
                 browserPlaceholderEl.innerHTML = `
-                    <i class="fas fa-compass"></i>
-                    <p>页面加载完成</p>
+                    <i class="fas fa-check-circle" style="color: #28ca42;"></i>
+                    <p>页面刷新完成</p>
                     <p>当前URL: <span id="displayUrl">${url}</span></p>
+                    <p id="pageStatus">页面刷新完成</p>
                 `;
                 displayUrlEl = document.getElementById('displayUrl');
+                pageStatusEl = document.getElementById('pageStatus');
                 addLog("页面刷新完成: " + url, "success");
             }, 1000);
         }
@@ -843,6 +1104,17 @@
             
             // 保存日志条目
             logEntries.push({time, message, type});
+        }
+        
+        // 获取总URL数量
+        function getTotalUrls() {
+            return groups.reduce((total, group) => total + group.urls.length, 0);
+        }
+        
+        // 获取已处理的URL数量
+        function getProcessedUrlsCount() {
+            // 简化计算，实际应该跟踪每个URL的处理状态
+            return currentGroupIndex * 5 + currentUrlIndex; // 估算值
         }
         
         // 验证URL格式
