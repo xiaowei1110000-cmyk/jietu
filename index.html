@@ -1274,8 +1274,8 @@ https://test.com/group?cid=1234&user=test#section
                                 </div>
                                 <!-- 使用代理URL解决跨域 -->
                                 <iframe class="browser-frame" id="globalBrowserFrame" 
-                                        sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
-                                        src="https://cors-anywhere.herokuapp.com/https://example.com">
+                                        sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-pointer-lock"
+                                        src="https://example.com">
                                 </iframe>
                             </div>
                         </div>
@@ -1650,10 +1650,10 @@ https://test.com/group?cid=1234&user=test#section
         
         // 代理服务器列表（解决跨域）
         const proxyServers = [
-            'https://cors-anywhere.herokuapp.com/',
-            'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?',
+            'https://api.allorigins.win/get?url=',
             'https://thingproxy.freeboard.io/fetch/',
-            'https://crossorigin.me/'
+            'https://proxy.cors.sh/'
         ];
         
         let currentProxyIndex = 0;
@@ -2089,7 +2089,7 @@ https://test.com/group?cid=1234&user=test#section
         function openWebsiteWithProxy(url, groupId = null) {
             const useProxy = groupId ? telegramGroups.find(g => g.id === groupId)?.useProxy : true;
             
-            if (!useProxy) {
+            if (!useProxy || url.includes('about:blank')) {
                 return url; // 不使用代理
             }
             
@@ -2100,8 +2100,8 @@ https://test.com/group?cid=1234&user=test#section
             // 对于某些代理，需要特殊处理
             if (proxy.includes('allorigins.win')) {
                 return `${proxy}${encodeURIComponent(url)}`;
-            } else if (proxy.includes('thingproxy.freeboard.io')) {
-                return `${proxy}${url}`;
+            } else if (proxy.includes('corsproxy.io')) {
+                return `${proxy}${encodeURIComponent(url)}`;
             } else {
                 return proxy + url;
             }
@@ -2222,77 +2222,169 @@ https://test.com/group?cid=1234&user=test#section
             if (!iframe) return;
             
             try {
+                // 使用postMessage通信绕过跨域限制
                 const script = `
-                    // 自动点击脚本
-                    function autoClickLogo() {
-                        console.log('开始自动点击Logo...');
-                        
-                        // 常见的Logo选择器
-                        const selectors = [
-                            'a[href*="telegram"]',
-                            'a[href*="t.me"]',
-                            '.telegram-link',
-                            '.tg-link',
-                            '[class*="telegram"]',
-                            '[class*="tg-"]',
-                            'button:contains("Telegram")',
-                            'a:contains("Telegram")',
-                            'button:contains("Join")',
-                            'a:contains("Join")',
-                            'button:contains("Group")',
-                            'a:contains("Group")',
-                            'button:contains("Channel")',
-                            'a:contains("Channel")'
-                        ];
-                        
-                        let clicked = false;
-                        
-                        // 尝试每个选择器
-                        selectors.forEach(selector => {
-                            try {
-                                const elements = document.querySelectorAll(selector);
-                                if (elements.length > 0) {
-                                    console.log('找到元素:', selector, elements[0]);
-                                    elements[0].click();
-                                    clicked = true;
-                                    console.log('点击成功！');
-                                }
-                            } catch (e) {
-                                console.log('选择器失败:', selector, e);
+                    (function() {
+                        // 接收来自父窗口的消息
+                        window.addEventListener('message', function(event) {
+                            if (event.data.type === 'click_logo') {
+                                autoClickLogo();
+                            }
+                            if (event.data.type === 'find_elements') {
+                                findLogoElements();
                             }
                         });
                         
-                        // 如果没有找到，尝试点击第一个按钮或链接
-                        if (!clicked) {
-                            const buttons = document.querySelectorAll('button, a.btn, a.button, .btn, .button');
-                            if (buttons.length > 0) {
-                                buttons[0].click();
-                                console.log('点击了第一个按钮');
-                                clicked = true;
+                        // 自动点击Logo函数
+                        function autoClickLogo() {
+                            console.log('开始自动点击Logo...');
+                            
+                            // 常见的Logo选择器
+                            const selectors = [
+                                'a[href*="telegram"]',
+                                'a[href*="t.me"]',
+                                '.telegram-link',
+                                '.tg-link',
+                                '[class*="telegram"]',
+                                '[class*="tg-"]',
+                                'button:contains("Telegram")',
+                                'a:contains("Telegram")',
+                                'button:contains("Join")',
+                                'a:contains("Join")',
+                                'button:contains("Group")',
+                                'a:contains("Group")',
+                                'button:contains("Channel")',
+                                'a:contains("Channel")'
+                            ];
+                            
+                            let clicked = false;
+                            
+                            // 尝试每个选择器
+                            selectors.forEach(selector => {
+                                try {
+                                    const elements = document.querySelectorAll(selector);
+                                    if (elements.length > 0) {
+                                        console.log('找到元素:', selector, elements[0]);
+                                        elements[0].click();
+                                        clicked = true;
+                                        console.log('点击成功！');
+                                    }
+                                } catch (e) {
+                                    console.log('选择器失败:', selector, e);
+                                }
+                            });
+                            
+                            // 如果没有找到，尝试点击第一个按钮或链接
+                            if (!clicked) {
+                                const buttons = document.querySelectorAll('button, a.btn, a.button, .btn, .button');
+                                if (buttons.length > 0) {
+                                    buttons[0].click();
+                                    console.log('点击了第一个按钮');
+                                    clicked = true;
+                                }
                             }
+                            
+                            // 发送结果回父窗口
+                            window.parent.postMessage({
+                                type: 'click_result',
+                                success: clicked
+                            }, '*');
+                            
+                            return clicked;
                         }
                         
-                        return clicked;
-                    }
-                    
-                    // 暴露函数到全局
-                    window.autoClickLogo = autoClickLogo;
-                    
-                    // 添加右键菜单支持
-                    document.addEventListener('contextmenu', function(e) {
-                        console.log('右键点击:', e.target);
-                        e.preventDefault();
-                        return false;
-                    }, true);
-                    
-                    console.log('点击检测脚本已注入');
+                        // 查找Logo元素
+                        function findLogoElements() {
+                            const elements = [];
+                            
+                            // 查找所有可能的Logo元素
+                            const selectors = [
+                                'img',
+                                'a',
+                                'button',
+                                '.logo',
+                                '[class*="logo"]',
+                                '[id*="logo"]',
+                                'h1',
+                                'h2',
+                                'h3'
+                            ];
+                            
+                            selectors.forEach(selector => {
+                                try {
+                                    document.querySelectorAll(selector).forEach(el => {
+                                        elements.push({
+                                            tagName: el.tagName,
+                                            className: el.className,
+                                            id: el.id,
+                                            text: el.textContent?.substring(0, 50) || '',
+                                            src: el.src || '',
+                                            href: el.href || '',
+                                            outerHTML: el.outerHTML.substring(0, 200)
+                                        });
+                                    });
+                                } catch (e) {
+                                    console.log('查询失败:', selector, e);
+                                }
+                            });
+                            
+                            // 发送结果回父窗口
+                            window.parent.postMessage({
+                                type: 'elements_found',
+                                elements: elements.slice(0, 20)
+                            }, '*');
+                            
+                            return elements;
+                        }
+                        
+                        // 暴露函数到全局
+                        window.autoClickLogo = autoClickLogo;
+                        window.findLogoElements = findLogoElements;
+                        
+                        console.log('点击检测脚本已注入');
+                    })();
                 `;
                 
-                iframe.contentWindow.eval(script);
+                // 创建一个script元素并注入
+                const scriptElement = document.createElement('script');
+                scriptElement.textContent = script;
+                iframe.contentDocument.head.appendChild(scriptElement);
+                
+                // 监听来自iframe的消息
+                window.addEventListener('message', function(event) {
+                    if (event.data.type === 'click_result') {
+                        if (event.data.success) {
+                            showNotification('自动点击成功', 'success');
+                            addLog('自动点击成功', 'success');
+                        } else {
+                            showNotification('未找到可点击的元素', 'warning');
+                            addLog('未找到可点击的元素', 'warning');
+                        }
+                    }
+                    if (event.data.type === 'elements_found') {
+                        console.log('找到的元素:', event.data.elements);
+                    }
+                });
+                
                 addLog('点击检测脚本已注入', 'success');
             } catch (error) {
                 console.log('脚本注入失败（跨域限制）:', error);
                 addLog('脚本注入失败（跨域限制）', 'warning');
+            }
+        }
+
+        // 通过postMessage发送点击命令
+        function sendClickCommand(groupId) {
+            const iframe = document.getElementById(`iframe-${groupId}`);
+            if (!iframe) return;
+            
+            try {
+                iframe.contentWindow.postMessage({
+                    type: 'click_logo'
+                }, '*');
+                showNotification('已发送点击命令', 'info');
+            } catch (error) {
+                console.error('发送点击命令失败:', error);
             }
         }
 
@@ -2324,7 +2416,9 @@ https://test.com/group?cid=1234&user=test#section
                     console.log('点击脚本激活成功');
                 `;
                 
-                iframe.contentWindow.eval(script);
+                const scriptElement = document.createElement('script');
+                scriptElement.textContent = script;
+                iframe.contentDocument.head.appendChild(scriptElement);
                 showNotification('点击脚本已注入', 'success');
                 addLog('点击脚本已注入', 'success');
             } catch (error) {
@@ -2344,36 +2438,13 @@ https://test.com/group?cid=1234&user=test#section
                 return;
             }
             
-            try {
-                // 尝试执行自动点击
-                const result = iframe.contentWindow.eval(`
-                    try {
-                        if (typeof window.autoClickLogo === 'function') {
-                            return window.autoClickLogo();
-                        }
-                        return false;
-                    } catch(e) {
-                        console.error('点击失败:', e);
-                        return false;
-                    }
-                `);
-                
-                if (result) {
-                    showNotification('自动点击成功执行', 'success');
-                    addLog('自动点击成功执行', 'success');
-                    
-                    // 等待页面跳转
-                    setTimeout(() => {
-                        captureAndSendScreenshot(groupId);
-                    }, group.clickWaitTime * 1000 || 5000);
-                } else {
-                    showNotification('未找到可点击的元素', 'warning');
-                    addLog('未找到可点击的元素', 'warning');
-                }
-            } catch (error) {
-                showNotification(`点击失败: ${error.message}`, 'error');
-                addLog(`点击失败: ${error.message}`, 'error');
-            }
+            // 使用postMessage发送点击命令
+            sendClickCommand(groupId);
+            
+            // 等待页面跳转
+            setTimeout(() => {
+                captureAndSendScreenshot(groupId);
+            }, group.clickWaitTime * 1000 || 5000);
         }
 
         // 查找并点击Logo
@@ -2387,70 +2458,13 @@ https://test.com/group?cid=1234&user=test#section
             // 1. 首先使用OCR识别
             const ocrResult = await performOCRForGroup(groupId);
             
-            // 2. 尝试使用选择器点击
-            const iframe = document.getElementById(`iframe-${groupId}`);
-            if (!iframe) return;
+            // 2. 发送点击命令
+            sendClickCommand(groupId);
             
-            try {
-                // 构建选择器脚本
-                const selectors = group.logoSelector ? 
-                    group.logoSelector.split(',').map(s => s.trim()) : 
-                    ['h1', 'h2', '.logo', 'img', 'button', 'a'];
-                
-                const script = `
-                    let clicked = false;
-                    const selectors = ${JSON.stringify(selectors)};
-                    
-                    for (let selector of selectors) {
-                        try {
-                            const elements = document.querySelectorAll(selector);
-                            if (elements.length > 0) {
-                                console.log('尝试点击:', selector, elements[0]);
-                                elements[0].click();
-                                clicked = true;
-                                break;
-                            }
-                        } catch(e) {
-                            console.log('选择器失败:', selector, e);
-                        }
-                    }
-                    
-                    if (!clicked) {
-                        // 尝试点击包含目标文字的按钮或链接
-                        const targetText = ${JSON.stringify(group.targetLogoText || '')};
-                        if (targetText) {
-                            const allElements = document.querySelectorAll('button, a, span, div');
-                            for (let el of allElements) {
-                                if (el.textContent && el.textContent.includes(targetText)) {
-                                    el.click();
-                                    clicked = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    
-                    return clicked;
-                `;
-                
-                const result = iframe.contentWindow.eval(script);
-                
-                if (result) {
-                    showNotification('Logo点击成功', 'success');
-                    addLog('Logo点击成功', 'success');
-                    
-                    // 等待页面跳转
-                    setTimeout(() => {
-                        captureAndSendScreenshot(groupId);
-                    }, group.clickWaitTime * 1000 || 5000);
-                } else {
-                    showNotification('未找到Logo元素', 'warning');
-                    addLog('未找到Logo元素', 'warning');
-                }
-            } catch (error) {
-                showNotification(`点击失败: ${error.message}`, 'error');
-                addLog(`点击失败: ${error.message}`, 'error');
-            }
+            // 3. 等待页面跳转
+            setTimeout(() => {
+                captureAndSendScreenshot(groupId);
+            }, group.clickWaitTime * 1000 || 5000);
         }
 
         // 执行OCR识别
@@ -2512,7 +2526,7 @@ https://test.com/group?cid=1234&user=test#section
                 
                 // 2. 查找并点击Logo
                 updateAutoStep(3, '正在查找并点击Logo...');
-                await findAndClickLogo(groupId);
+                sendClickCommand(groupId);
                 updateAutoStep(3, 'Logo点击完成', true);
                 
                 // 3. 等待页面跳转
@@ -2789,7 +2803,7 @@ https://test.com/group?cid=1234&user=test#section`;
                 
                 // 自动点击Logo
                 addLog(`自动点击Logo: ${group.name}`, 'info');
-                await findAndClickLogo(group.id);
+                sendClickCommand(group.id);
                 
                 // 等待页面跳转
                 await sleep((group.clickWaitTime || 5) * 1000);
@@ -2804,7 +2818,7 @@ https://test.com/group?cid=1234&user=test#section`;
                 const currentUrl = iframe.src;
                 const originalUrl = group.websiteUrl;
                 
-                if (currentUrl !== originalUrl && !currentUrl.includes('cors-anywhere')) {
+                if (currentUrl !== originalUrl && !currentUrl.includes('corsproxy') && !currentUrl.includes('allorigins')) {
                     // 页面发生了跳转
                     link.status = 'matched';
                     link.matchedAt = new Date().toISOString();
@@ -2822,10 +2836,31 @@ https://test.com/group?cid=1234&user=test#section`;
                 } else {
                     // 检查页面内容
                     try {
-                        const containsLink = iframe.contentWindow.eval(`
-                            document.body.textContent.includes('${link.cid || ''}') || 
-                            document.body.innerHTML.includes('${link.cid || ''}')
-                        `);
+                        // 使用postMessage检查内容
+                        const containsLink = await new Promise((resolve) => {
+                            const checkContent = () => {
+                                iframe.contentWindow.postMessage({
+                                    type: 'check_content',
+                                    content: link.cid || ''
+                                }, '*');
+                                
+                                // 监听响应
+                                const messageHandler = function(event) {
+                                    if (event.data.type === 'content_result') {
+                                        window.removeEventListener('message', messageHandler);
+                                        resolve(event.data.contains);
+                                    }
+                                };
+                                window.addEventListener('message', messageHandler);
+                                
+                                // 超时处理
+                                setTimeout(() => {
+                                    window.removeEventListener('message', messageHandler);
+                                    resolve(false);
+                                }, 5000);
+                            };
+                            checkContent();
+                        });
                         
                         if (containsLink) {
                             link.status = 'matched';
@@ -3007,7 +3042,7 @@ https://test.com/group?cid=1234&user=test#section`;
                 updateAutoStep(2, 'OCR识别完成', ocrResult !== null);
                 
                 updateAutoStep(3, '正在自动点击Logo...');
-                await findAndClickLogo(groupId);
+                sendClickCommand(groupId);
                 updateAutoStep(3, 'Logo点击完成', true);
                 
                 updateAutoStep(4, '等待页面跳转...');
@@ -3166,7 +3201,8 @@ https://test.com/group?cid=1234&user=test#section`;
                         foreignObjectRendering: true,
                         logging: false
                     }).then(canvas => {
-                        resolve(canvas.toDataURL('image/png', 0.9));
+                        const imageData = canvas.toDataURL('image/png', 0.9);
+                        resolve(imageData);
                     }).catch(err => {
                         console.error('HTML页面截图失败:', err);
                         reject(err);
@@ -3193,7 +3229,8 @@ https://test.com/group?cid=1234&user=test#section`;
                             foreignObjectRendering: true,
                             logging: false
                         }).then(canvas => {
-                            resolve(canvas.toDataURL('image/png', 0.9));
+                            const imageData = canvas.toDataURL('image/png', 0.9);
+                            resolve(imageData);
                         }).catch(err => {
                             console.warn('iframe截图失败:', err);
                             createFallbackScreenshot(resolve);
@@ -3226,10 +3263,11 @@ https://test.com/group?cid=1234&user=test#section`;
             ctx.font = '16px Arial';
             ctx.fillText('可能是跨域限制导致无法访问页面内容', 400, 220);
             
-            resolve(canvas.toDataURL('image/png', 0.8));
+            const imageData = canvas.toDataURL('image/png', 0.8);
+            resolve(imageData);
         }
 
-        // 发送截图到Telegram
+        // 发送截图到Telegram（确保格式与要求一致）
         async function sendScreenshotToTelegram(group, link, screenshotData) {
             if (!botConfig.token || !botConfig.sendScreenshot) return;
             
@@ -3275,7 +3313,7 @@ https://test.com/group?cid=1234&user=test#section`;
             }
         }
 
-        // DataURL转Blob
+        // DataURL转Blob（确保图片格式正确）
         function dataURLToBlob(dataURL) {
             return new Promise((resolve, reject) => {
                 try {
@@ -3290,27 +3328,40 @@ https://test.com/group?cid=1234&user=test#section`;
                         u8arr[n] = bstr.charCodeAt(n);
                     }
                     
-                    resolve(new Blob([u8arr], { type: mime }));
+                    // 确保使用正确的图片格式
+                    const blob = new Blob([u8arr], { type: mime });
+                    
+                    // 验证blob大小
+                    if (blob.size === 0) {
+                        console.warn('生成的Blob为空，创建备用图片');
+                        createFallbackImage(resolve);
+                    } else {
+                        resolve(blob);
+                    }
                 } catch (error) {
                     console.error('DataURL转Blob失败:', error);
-                    
-                    const canvas = document.createElement('canvas');
-                    canvas.width = 400;
-                    canvas.height = 200;
-                    const ctx = canvas.getContext('2d');
-                    
-                    ctx.fillStyle = '#f8f9fa';
-                    ctx.fillRect(0, 0, 400, 200);
-                    
-                    ctx.fillStyle = '#ef4444';
-                    ctx.font = 'bold 16px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('截图生成失败', 200, 80);
-                    ctx.fillText('请检查网络连接', 200, 110);
-                    
-                    canvas.toBlob(resolve, 'image/png', 0.8);
+                    createFallbackImage(resolve);
                 }
             });
+        }
+
+        // 创建备用图片
+        function createFallbackImage(resolve) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 400;
+            canvas.height = 200;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#f8f9fa';
+            ctx.fillRect(0, 0, 400, 200);
+            
+            ctx.fillStyle = '#ef4444';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('截图生成失败', 200, 80);
+            ctx.fillText('请检查网络连接', 200, 110);
+            
+            canvas.toBlob(resolve, 'image/png', 0.8);
         }
 
         // 测试单链接
@@ -3926,6 +3977,16 @@ ${result.cid ? `CID: ${result.cid}\n` : ''}
                     browserStatus.textContent = '加载失败';
                 };
             }
+            
+            // 监听来自iframe的消息
+            window.addEventListener('message', function(event) {
+                if (event.data.type === 'click_result') {
+                    console.log('点击结果:', event.data.success);
+                }
+                if (event.data.type === 'elements_found') {
+                    console.log('找到的元素:', event.data.elements);
+                }
+            });
         });
 
         // 页面加载完成后显示就绪通知
